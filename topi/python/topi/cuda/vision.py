@@ -180,6 +180,56 @@ def schedule_proposal(outs):
             if tensor.op.input_tensors and tensor.op not in scheduled_ops:
                 traverse(tensor.op)
         scheduled_ops.append(op)
+
+    traverse(outs[0].op)
+    return s
+
+@generic.schedule_roi_align_v2.register(["cuda", "gpu"])
+def schedule_roi_align_v2(outs):
+    outs = [outs] if isinstance(outs, tvm.tensor.Tensor) else outs
+    s = tvm.create_schedule([x.op for x in outs])
+
+    def _schedule(PaddedInput, Pool):
+        if isinstance(PaddedInput.op, tvm.tensor.ComputeOp):
+            s[PaddedInput].compute_inline()
+        num_thread = tvm.target.current_target(
+            allow_none=False).max_num_threads
+        if Pool.op in s.outputs:
+            Out = Pool
+            OL = s.cache_write(Pool, "local")
+        else:
+            Out = outs[0].op.output(0)
+            s[Pool].set_scope("local")
+        fused = s[Out].fuse(*s[Out].op.axis)
+        bx, tx = s[Out].split(fused, factor=num_thread)
+        s[Out].bind(bx, tvm.thread_axis("blockIdx.x"))
+        s[Out].bind(tx, tvm.thread_axis("threadIdx.x"))
+        if Pool.op in s.outputs:
+            s[OL].compute_at(s[Out], tx)
+        else:
+            s[Pool].compute_at(s[Out], tx)
+
+    scheduled_ops = []
+
+    def traverse(OP):
+        """Internal travserse function"""
+        # inline all one-to-one-mapping operators except the last stage (output)
+        if tag.is_broadcast(OP.tag):
+            if OP not in s.outputs:
+                s[OP].compute_inline()
+            for tensor in OP.input_tensors:
+                if tensor.op.input_tensors and tensor.op not in scheduled_ops:
+                    traverse(tensor.op)
+        # schedule pool
+        elif OP.tag.startswith('pool'):
+            PaddedInput = OP.input_tensors[0]
+            Pool = OP.output(0)
+            _schedule(PaddedInput, Pool)
+        else:
+            raise RuntimeError("Unsupported operator: %s" % OP.tag)
+
+        scheduled_ops.append(OP)
+
     traverse(outs[0].op)
     return s
 

@@ -629,6 +629,14 @@ def _mx_smooth_l1(inputs, attrs):
                      _op.abs(inputs[0]) - _expr.const(0.5 / scalar_sq))
 
 
+def _mx_roi_align_v2(inputs, attrs):
+    new_attrs = {}
+    new_attrs["pooled_size"] = attrs.get_int_tuple("pooled_size")
+    new_attrs["spatial_scale"] = attrs.get_float("spatial_scale")
+    new_attrs["layout"] = "NCHW"
+    return _op.vision.roi_align_v2(inputs[0], inputs[1], **new_attrs)
+
+
 def _mx_deformable_convolution(inputs, attrs):
     new_attrs = {}
     assert attrs.get_bool("no_bias")
@@ -796,6 +804,9 @@ _convert_map = {
     "_contrib_MultiProposal" : _mx_proposal,
     "_contrib_box_nms" : _mx_box_nms,
     "_contrib_DeformableConvolution" : _mx_deformable_convolution,
+
+    # TuSimple custom op
+    "_contrib_ROIAlign_v2" : _mx_roi_align_v2,
     # List of missing operators that are present in NNVMv1
     # TODO(tvm-tvm): support all operators.
     #

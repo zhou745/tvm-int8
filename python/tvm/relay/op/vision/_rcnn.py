@@ -79,3 +79,17 @@ def schedule_proposal(_, outs, target):
         return topi.generic.schedule_proposal(outs)
 
 reg.register_pattern("vision.proposal", OpPattern.OPAQUE)
+
+@reg.register_compute("vision.roi_align_v2")
+def compute_roi_align_v2(attrs, inputs, _, target):
+    """Compute definition of roi_align_v2"""
+    return [topi.vision.rcnn.roi_align_v2(inputs[0], inputs[1], get_const_tuple(attrs.pooled_size),
+            attrs.spatial_scale)]
+
+@reg.register_schedule("vision.roi_align_v2")
+def schedule_roi_align_v2(_, outs, target):
+    """Schedule definition of roi_align_v2"""
+    with target:
+        return topi.generic.vision.schedule_roi_align_v2(outs)
+
+reg.register_pattern("vision.roi_align_v2", OpPattern.OUT_ELEMWISE_FUSABLE)
