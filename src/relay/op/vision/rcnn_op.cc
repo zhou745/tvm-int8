@@ -195,5 +195,36 @@ RELAY_REGISTER_OP("vision.proposal")
 .set_support_level(5)
 .add_type_rel("Proposal", ProposalRel);
 
+Expr MakeROIAlignV2(Expr data, Expr rois, Array<IndexExpr> pooled_size, double spatial_scale,
+                    std::string layout) {
+  auto attrs = make_node<ROIAlignAttrs>();
+  attrs->pooled_size = pooled_size;
+  attrs->spatial_scale = spatial_scale;
+  attrs->layout = layout;
+  static const Op& op = Op::Get("vision.roi_align_v2");
+  return CallNode::make(op, {data, rois}, Attrs(attrs), {});
+}
+
+TVM_REGISTER_API("relay.op.vision._make.roi_align_v2")
+.set_body([](const TVMArgs& args, TVMRetValue* rv) {
+    runtime::detail::unpack_call<Expr, 5>(MakeROIAlignV2, args, rv);
+  });
+
+RELAY_REGISTER_OP("vision.roi_align_v2")
+    .describe(R"code("ROI Align.
+ - **data**: This depends on the `layout` parameter. Input is 4D array of shape
+             (batch_size, channels, height, width) if `layout` is `NCHW`.
+ - **rois**: 2D array of shape (num_roi, 5). The last dimension should be in format of
+          [batch_index, w_start, h_start, w_end, h_end].
+ - **out**: This depends on the `layout` parameter. Output is 4D array of shape
+            (num_roi, channels, pooled_height, pooled_width) if `layout` is `NCHW`.
+
+ )code" TVM_ADD_FILELINE)
+    .set_num_inputs(2)
+    .add_argument("data", "Tensor", "The input tensor.")
+    .add_argument("rois", "Tensor", "The input rois")
+    .set_support_level(5)
+    .add_type_rel("ROIAlign", ROIAlignRel);
+
 }  // namespace relay
 }  // namespace tvm
