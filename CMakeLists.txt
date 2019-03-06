@@ -55,6 +55,7 @@ include_directories("3rdparty/dlpack/include")
 include_directories("3rdparty/dmlc-core/include")
 include_directories("3rdparty/rang/include")
 include_directories("3rdparty/compiler-rt")
+include_directories("3rdparty/mshadow")
 
 # initial variables
 set(TVM_LINKER_LIBS "")
@@ -191,6 +192,7 @@ include(cmake/modules/contrib/Random.cmake)
 include(cmake/modules/contrib/Sort.cmake)
 include(cmake/modules/contrib/NNPack.cmake)
 include(cmake/modules/contrib/HybridDump.cmake)
+include(cmake/modules/contrib/MXNet.cmake)
 
 add_library(tvm SHARED ${COMPILER_SRCS} ${RUNTIME_SRCS})
 # set both cxx and cuda standard to c++11
