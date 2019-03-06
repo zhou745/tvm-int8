@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.2)
-project(tvm C CXX)
+cmake_minimum_required(VERSION 3.8)
+project(tvm C CXX CUDA)
 
 # Utility functions
 include(cmake/util/Util.cmake)
@@ -193,6 +193,8 @@ include(cmake/modules/contrib/NNPack.cmake)
 include(cmake/modules/contrib/HybridDump.cmake)
 
 add_library(tvm SHARED ${COMPILER_SRCS} ${RUNTIME_SRCS})
+# set both cxx and cuda standard to c++11
+target_compile_features(tvm PUBLIC cxx_std_11)
 add_library(tvm_topi SHARED ${TOPI_SRCS})
 add_library(tvm_runtime SHARED ${RUNTIME_SRCS})
 if(NOT USE_SGX STREQUAL "OFF")
