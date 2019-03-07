@@ -25,6 +25,8 @@
 #include <tvm/relay/op.h>
 #include <tvm/relay/op_attr_types.h>
 #include <tvm/relay/attrs/vision.h>
+#include <topi/contrib/proposal.h>
+#include "../../../contrib/mxnet/proposal.h"
 
 namespace tvm {
 namespace relay {
@@ -199,7 +201,16 @@ RELAY_REGISTER_OP("vision.proposal")
 .add_argument("bbox_pred", "Tensor", "BBox predicted deltas from anchors for proposals")
 .add_argument("im_info", "Tensor", "Image size and scale")
 .set_support_level(5)
-.add_type_rel("Proposal", ProposalRel);
+.add_type_rel("Proposal", ProposalRel)
+.set_attr<FTVMCompute>("FTVMCompute",
+                       [](const Attrs& attrs, const Array<Tensor>& inputs,
+                          const Type& out_dtype, const Target& target) -> Array<Tensor> {
+                         auto* param = attrs.as<ProposalAttrs>();
+                         return Array<Tensor>{topi::proposal(
+                                 inputs[0], inputs[1], inputs[2], param->scales, param->ratios,
+                                 param->feature_stride, param->threshold, param->rpn_pre_nms_top_n,
+                                 param->rpn_post_nms_top_n, param->rpn_min_size, param->iou_loss)};
+                       });
 
 Expr MakeROIAlignV2(Expr data, Expr rois, Array<IndexExpr> pooled_size, double spatial_scale,
                     std::string layout) {

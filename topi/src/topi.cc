@@ -69,6 +69,8 @@
 #include <topi/rocm/dense.h>
 #include <topi/rocm/normalization.h>
 
+#include <topi/contrib/proposal.h>
+
 namespace topi {
 
 using namespace tvm;
@@ -483,6 +485,12 @@ TVM_REGISTER_GLOBAL("topi.image.resize")
 .set_body([](TVMArgs args, TVMRetValue *rv) {
   *rv = image::resize(args[0], args[1], args[2], args[3], args[4]);
   });
+
+TVM_REGISTER_GLOBAL("topi.cuda.proposal")
+.set_body([](TVMArgs args, TVMRetValue *rv){
+  *rv = proposal(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
+          args[9], args[10]);
+});
 
 /* Generic schedules */
 TVM_REGISTER_GLOBAL("topi.generic.default_schedule")

@@ -54,7 +54,8 @@ def schedule_roi_pool(_, outs, target):
 
 reg.register_pattern("vision.roi_pool", OpPattern.OUT_ELEMWISE_FUSABLE)
 
-@reg.register_compute("vision.proposal")
+# Comment out this to use CUDA proposal code
+# @reg.register_compute("vision.proposal")
 def compute_proposal(attrs, inputs, _, target):
     """Compute definition of proposal"""
     scales = get_float_tuple(attrs.scales)
