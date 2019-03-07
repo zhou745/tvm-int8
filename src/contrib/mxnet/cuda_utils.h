@@ -63,6 +63,24 @@ inline std::vector<int> to_int_vector(const tvm::Array<tvm::Expr>& arr) {
 }
 
 
+namespace tvm {
+
+inline const double* as_const_double(const Expr& x) {
+  if (!x.defined()) return nullptr;
+  if (const ir::FloatImm* op = x.as<ir::FloatImm>()) {
+    return &(op->value);
+  } else {
+    return nullptr;
+  }
+}
+
+}  // namespace tvm
+
+inline std::vector<double> to_double_vector(const tvm::Array<tvm::Expr>& arr) {
+  return to_const_vector<double>(arr, tvm::as_const_double);
+}
+
+
 /*! \brief Macros/inlines to assist CLion to parse Cuda files (*.cu, *.cuh) */
 #ifdef __JETBRAINS_IDE__
 #define __CUDACC__ 1
