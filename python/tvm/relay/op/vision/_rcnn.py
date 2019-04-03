@@ -94,3 +94,10 @@ def schedule_roi_align_v2(_, outs, target):
         return topi.generic.vision.schedule_roi_align_v2(outs)
 
 reg.register_pattern("vision.roi_align_v2", OpPattern.OUT_ELEMWISE_FUSABLE)
+
+@reg.register_schedule("vision.post_detection")
+def schedule_post_detection(_, outs, target):
+    with target:
+        return topi.generic.extern.schedule_extern(outs)
+
+reg.register_pattern("vision.post_detection", OpPattern.OPAQUE)

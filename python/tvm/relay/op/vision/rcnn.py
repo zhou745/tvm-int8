@@ -16,6 +16,7 @@
 # under the License.
 """Faster R-CNN and Mask R-CNN operations."""
 from . import _make
+from ...expr import TupleWrapper
 
 
 def roi_align(data, rois, pooled_size, spatial_scale, sample_ratio=-1, layout='NCHW'):
@@ -162,3 +163,9 @@ def roi_align_v2(data, rois, pooled_size, spatial_scale, layout='NCHW'):
         4-D tensor with shape [num_roi, channel, pooled_size, pooled_size]
     """
     return _make.roi_align_v2(data, rois, pooled_size, spatial_scale, layout)
+
+def post_detection(rois, cls_score, bbox_pred, im_info, thresh, nms_thresh_lo, nms_thresh_hi):
+    """Post detection."""
+    result = _make.post_detection(rois, cls_score, bbox_pred, im_info, thresh, nms_thresh_lo,
+                                  nms_thresh_hi)
+    return TupleWrapper(result, 2)

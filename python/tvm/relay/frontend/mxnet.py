@@ -656,6 +656,15 @@ def _mx_deformable_convolution(inputs, attrs):
     return res
 
 
+def _mx_post_detection(inputs, attrs):
+    new_attrs = {}
+    new_attrs['thresh'] = attrs.get_float('thresh', 0.9)
+    new_attrs['nms_thresh_lo'] = attrs.get_float('nms_thresh_lo', 0.3)
+    new_attrs['nms_thresh_hi'] = attrs.get_float('nms_thresh_hi', 0.5)
+    result = _op.vision.post_detection(inputs[0], inputs[1], inputs[2], inputs[3], **new_attrs)
+    return [result[0], result[1]]
+
+
 # Note: due to attribute conversion constraint
 # ops in the identity set must be attribute free
 _identity_list = [
@@ -807,6 +816,7 @@ _convert_map = {
 
     # TuSimple custom op
     "_contrib_ROIAlign_v2" : _mx_roi_align_v2,
+    "PostDetection": _mx_post_detection,
     # List of missing operators that are present in NNVMv1
     # TODO(tvm-tvm): support all operators.
     #

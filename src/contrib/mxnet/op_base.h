@@ -59,6 +59,10 @@ class OpSignature {
     hash = (hash << 1) ^ std::hash<float>{}(val);
   }
 
+  void AddSign(double val) {
+    hash = (hash << 1) ^ std::hash<double>{}(val);
+  }
+
   template <typename T>
   void AddSign(const std::vector<T>& vals) {
     for (auto&& v : vals) {
