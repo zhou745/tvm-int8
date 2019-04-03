@@ -71,6 +71,7 @@
 #include <topi/rocm/normalization.h>
 
 #include <topi/contrib/proposal.h>
+#include <topi/contrib/post_detection.h>
 
 namespace topi {
 
@@ -502,6 +503,11 @@ TVM_REGISTER_GLOBAL("topi.cuda.proposal")
 .set_body([](TVMArgs args, TVMRetValue *rv){
   *rv = proposal(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8],
           args[9], args[10]);
+});
+
+TVM_REGISTER_GLOBAL("topi.cuda.post_detection")
+.set_body([](TVMArgs args, TVMRetValue *rv) {
+  *rv = post_detection(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
 });
 
 /* Generic schedules */

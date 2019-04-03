@@ -208,6 +208,18 @@ struct ProposalAttrs : public tvm::AttrsNode<ProposalAttrs> {
   }
 };
 
+
+struct PostDetectionAttrs : public tvm::AttrsNode<PostDetectionAttrs> {
+  double thresh, nms_thresh_lo, nms_thresh_hi;
+
+  TVM_DECLARE_ATTRS(PostDetectionAttrs, "relay.attrs.PostDetectionAttrs") {
+    TVM_ATTR_FIELD(thresh).set_default(0.9);
+    TVM_ATTR_FIELD(nms_thresh_lo).set_default(0.3);
+    TVM_ATTR_FIELD(nms_thresh_hi).set_default(0.5);
+  }
+};
+
+
 }  // namespace relay
 }  // namespace tvm
 #endif  // TVM_RELAY_ATTRS_VISION_H_
