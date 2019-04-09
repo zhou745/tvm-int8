@@ -258,6 +258,7 @@ def identity_rewrite(ref_call, new_args, ctx):
 register_annotate_function("nn.relu", identity_rewrite)
 register_annotate_function("strided_slice", identity_rewrite)
 register_annotate_function("nn.avg_pool2d", identity_rewrite)
+register_annotate_function("nn.batch_flatten", identity_rewrite)
 
 
 def pool2d_rewrite(ref_call, new_args, ctx):
