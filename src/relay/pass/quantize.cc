@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -304,6 +304,7 @@ Expr DenseRealize(const Call& ref_call,
   if (!new_args[0]->derived_from<TempExprNode>() && !new_args[1]->derived_from<TempExprNode>()) {
     return Expr(nullptr);
   }
+
   const auto* lhs = new_args[0].as<QRealizeIntExprNode>();
   CHECK(lhs);
   const auto* rhs = new_args[1].as<QRealizeIntExprNode>();
@@ -497,6 +498,9 @@ RELAY_REGISTER_OP("nn.relu")
 .set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
 
 RELAY_REGISTER_OP("strided_slice")
+.set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
+
+RELAY_REGISTER_OP("nn.batch_flatten")
 .set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
 
 

@@ -183,12 +183,14 @@ def dense_rewrite(ref_call, new_args, ctx):
     lhs_expr, lhs_kind = _get_expr_kind(new_args[0])
     rhs_expr, rhs_kind = _get_expr_kind(new_args[1])
 
-    if lhs_kind != QAnnotateKind.INPUT and rhs_kind is None:
+    if lhs_kind is None or lhs_kind != QAnnotateKind.INPUT:
         lhs_expr = attach_simulated_quantize(lhs_expr, QAnnotateKind.INPUT)
-        rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
-        expr = _forward_op(ref_call, [lhs_expr, rhs_expr])
-        return QAnnotateExpr(expr, QAnnotateKind.ACTIVATION)
-    return None
+
+    assert rhs_kind is None
+    rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
+
+    expr = _forward_op(ref_call, [lhs_expr, rhs_expr])
+    return QAnnotateExpr(expr, QAnnotateKind.ACTIVATION)
 
 
 @register_annotate_function("multiply")
@@ -258,6 +260,7 @@ def identity_rewrite(ref_call, new_args, ctx):
 register_annotate_function("nn.relu", identity_rewrite)
 register_annotate_function("strided_slice", identity_rewrite)
 register_annotate_function("nn.avg_pool2d", identity_rewrite)
+register_annotate_function("nn.batch_flatten", identity_rewrite)
 
 
 def pool2d_rewrite(ref_call, new_args, ctx):
