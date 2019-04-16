@@ -229,7 +229,7 @@ Expr QuantizeRealize(const Call& ref_call,
     }
 
     float shift_nbit = std::log2(odom_scale_imm / idom_scale_imm);
-    CHECK_GT(shift_nbit, 0);
+    CHECK_GT(shift_nbit, 0) << idom_scale_imm << " " << odom_scale_imm << AsText(ref_call, false);
     if (static_cast<int>(shift_nbit) == shift_nbit) {
       // use right shift
       if (cfg->round_for_shift) {
@@ -345,10 +345,8 @@ Expr MulRealize(const Call& ref_call,
     Expr rdata = rhs->data;
 
     DataType dtype = cfg->dtype_activation;
-    if (lhs->dtype == Float(32)) {
+    if (lhs->dtype != dtype) {
       ldata = Cast(ldata, dtype);
-    } else {
-      CHECK_EQ(lhs->dtype, dtype);
     }
     if (rhs->dtype == Float(32)) {
       rdata = Cast(rdata, dtype);
@@ -494,15 +492,17 @@ Expr IdentityRealize(const Call& ref_call,
   return Expr(nullptr);
 }
 
+RELAY_REGISTER_OP("nn.batch_flatten")
+.set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
+
 RELAY_REGISTER_OP("nn.relu")
+.set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
+
+RELAY_REGISTER_OP("reshape")
 .set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
 
 RELAY_REGISTER_OP("strided_slice")
 .set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
-
-RELAY_REGISTER_OP("nn.batch_flatten")
-.set_attr<FForwardRewrite>("FQRealizeRewrite", IdentityRealize);
-
 
 Expr MaxPoolRealize(const Call& ref_call,
                     const Array<Expr>& new_args,

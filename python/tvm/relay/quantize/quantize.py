@@ -24,8 +24,9 @@ from .. import expr as _expr
 from .. import ir_pass as _ir_pass
 from .. import build_module as _build
 from .. import op as _op
-from ... import make as _make
+from ... import make as _make, context
 from ..base import NodeBase, register_relay_node
+from ...contrib import graph_runtime
 
 
 class QAnnotateKind(object):
@@ -197,6 +198,35 @@ def annotate(graph):
     return _quantize.annotate(graph)
 
 
+def collect_stats(graph, dataset):
+    quantize_op = _op.get("relay.op.annotation.simulated_quantize")
+    quantized_exprs = []
+
+    def visit_func(expr):
+        """Internal visit function"""
+        if isinstance(expr, _expr.Call) and expr.op == quantize_op and expr.attrs.kind != QAnnotateKind.WEIGHT:
+            quantized_exprs.append(expr.args[0])
+
+    _ir_pass.post_order_visit(graph, visit_func)
+    graph = _expr.Function(graph.params, _expr.Tuple(quantized_exprs))
+
+    graph_json, lib, params = _build.build(graph, 'cuda')
+    module = graph_runtime.create(graph_json, lib, context('cuda', 0))
+    module.set_input(**params)
+
+    num_outputs = module.get_num_outputs()
+    outputs = [[] for i in range(num_outputs)]
+
+    for batch in dataset:
+        module.set_input(**batch)
+        module.run()
+        for i in range(num_outputs):
+            output = module.get_output(i).asnumpy()
+            outputs[i].append(output)
+
+    return [np.concatenate(arr) for arr in outputs]
+
+
 def calibrate(graph, dataset=None):
     """The calibrate procedure will try to calculate the content of
     dom_scale, nbit, clip_min, clip_max for every `simulated_quantize`
@@ -217,12 +247,17 @@ def calibrate(graph, dataset=None):
     """
     def power2_scale(arr):
         """calculate weight scale with nearest mode-2 scale"""
-        val = np.amax(np.abs(arr.asnumpy()))
+        if not isinstance(arr, np.ndarray):
+            arr = arr.asnumpy()
+        val = np.amax(np.abs(arr))
         return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
     cfg = current_qconfig()
     const_params = {}
     quantize_op = _op.get("relay.op.annotation.simulated_quantize")
+
+    outputs = None
+    counter = [0]
 
     def visit_func(expr):
         """Internal visit function"""
@@ -239,7 +274,13 @@ def calibrate(graph, dataset=None):
                 assert isinstance(var, _expr.Constant)
                 scale = power2_scale(var.data)
             else:
-                scale = cfg.global_scale
+                if outputs is not None:
+                    data = outputs[counter[0]]
+                    counter[0] += 1
+                    scale = power2_scale(data)
+                    print(scale)
+                else:
+                    scale = cfg.global_scale
 
             def _make_const(val):
                 return _expr.const(val, 'float32')
@@ -250,7 +291,17 @@ def calibrate(graph, dataset=None):
             const_params[nclip_max] = _make_const((valid_range - 1))
 
     _ir_pass.post_order_visit(graph, visit_func)
-    return _expr.bind(graph, const_params)
+    original_graph = graph
+    graph = _expr.bind(original_graph, const_params)
+
+    if dataset is not None:
+        print('Calibrating on dataset')
+        outputs = collect_stats(graph, dataset)
+        _ir_pass.post_order_visit(original_graph, visit_func)
+        assert counter[0] == len(outputs)
+        graph = _expr.bind(original_graph, const_params)
+
+    return graph
 
 
 def realize(graph):
