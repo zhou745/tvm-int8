@@ -152,6 +152,7 @@ TVM_REGISTER_API("relay._quantize.annotate")
 // realize pass
 
 Expr QRealizeIntExprNode::Realize() const {
+  LOG(INFO) << "Realize";
   const auto& cfg = QConfig::Current();
   Expr data = this->data;
   if (cfg->store_lowbit_output) {
@@ -193,7 +194,6 @@ inline Expr MulAndDiv(Expr data, float s1, float s2) {
   } else if (static_cast<int>(factor) == factor) {
     return Multiply(data, MakeConstantScalar(cfg->dtype_activation, factor));
   } else {
-    LOG(FATAL) << "fall back to float computation";
     data = Cast(data, Float(32));
     return Multiply(data, MakeConstantScalar(Float(32), factor));
   }
@@ -205,7 +205,7 @@ Expr QuantizeRealize(const Call& ref_call,
   const QConfig& cfg = QConfig::Current();
   // do not handle data type cast
   const auto param = ref_call->attrs.as<SimulatedQuantizeAttrs>();
-  CHECK_EQ(param->rounding, "round");
+  // CHECK_EQ(param->rounding, "round");
 
   Expr dom_scale = new_args[1];
   Expr clip_min = new_args[2];
@@ -301,14 +301,12 @@ Expr DenseRealize(const Call& ref_call,
                   const NodeRef& ctx) {
   const QConfig& cfg = QConfig::Current();
   CHECK_EQ(new_args.size(), 2);
-  if (!new_args[0]->derived_from<TempExprNode>() && !new_args[1]->derived_from<TempExprNode>()) {
+  if (!new_args[0]->derived_from<TempExprNode>() || !new_args[1]->derived_from<TempExprNode>()) {
     return Expr(nullptr);
   }
 
   const auto* lhs = new_args[0].as<QRealizeIntExprNode>();
-  CHECK(lhs);
   const auto* rhs = new_args[1].as<QRealizeIntExprNode>();
-  CHECK(rhs);
 
   Expr ldata = lhs->data;
   if (lhs->dtype != cfg->dtype_input) {
@@ -483,6 +481,7 @@ RELAY_REGISTER_OP("concatenate")
 Expr IdentityRealize(const Call& ref_call,
                      const Array<Expr>& new_args,
                      const NodeRef& ctx) {
+  LOG(INFO) << ref_call->op;
   CHECK_EQ(new_args.size(), 1);
   if (const auto* n = new_args[0].as<QRealizeIntExprNode>()) {
     Expr ret = ForwardOp(ref_call, {n->data});
@@ -512,6 +511,7 @@ Expr MaxPoolRealize(const Call& ref_call,
   if (const auto* n = new_args[0].as<QRealizeIntExprNode>()) {
     Expr data = Cast(n->data, cfg->dtype_input);
     Expr ret = ForwardOp(ref_call, {data});
+    LOG(INFO) << "MP";
     return QRealizeIntExprNode::make(ret, n->dom_scale, cfg->dtype_input);
   }
   CHECK(!new_args[0]->derived_from<TempExprNode>());

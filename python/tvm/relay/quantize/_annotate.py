@@ -35,6 +35,10 @@ def simulated_quantize_compute(attrs, inputs, out_type, target):
     """Compiler for simulated_quantize."""
     assert len(inputs) == 4
     assert attrs.sign
+    if attrs.rounding == "origin":
+        return [topi.identity(inputs[0])]
+
+    assert False
     assert attrs.rounding == "round"
 
     data, scale, clip_min, clip_max = inputs
@@ -117,7 +121,7 @@ def register_annotate_function(op_name, frewrite=None, level=10):
 
 
 @register_func("relay.quantize.attach_simulated_quantize")
-def attach_simulated_quantize(data, kind, sign=True, rounding="round"):
+def attach_simulated_quantize(data, kind, sign=True, rounding="origin"):
     """Attach a simulated quantize operation after input data expr.
 
     Parameters
@@ -175,8 +179,10 @@ def conv2d_rewrite(ref_call, new_args, ctx):
 def dense_rewrite(ref_call, new_args, ctx):
     """Rewrite function for dense. Lhs of dense will be quantized to input field, and rhs of
     dense will be quantized to weight field. Output would be in activation field."""
+    print(current_qconfig().quantize_dense)
     if not current_qconfig().quantize_dense:
         return None
+    assert False
     cnt = _conv_counter()
     if cnt < current_qconfig().skip_k_conv:
         return None
