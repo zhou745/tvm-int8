@@ -348,7 +348,7 @@ def calibrate(graph, dataset=None):
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         val = np.amax(np.abs(arr))
-	return val if val > 1 else 1.0
+        return(val if val > 1 else 1.0)
        	return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
     def kld(arr):
@@ -356,7 +356,7 @@ def calibrate(graph, dataset=None):
             arr = arr.asnumpy()
         _, _, _, val = _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255)
         return val
-	return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+        return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
     fcalib = power2_scale
     #fcalib = kld

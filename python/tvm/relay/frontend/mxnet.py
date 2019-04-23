@@ -628,7 +628,8 @@ def _mx_smooth_l1(inputs, attrs):
                      _expr.const(scalar_sq / 2.0, dtype='float32') * inputs[0] * inputs[0],
                      _op.abs(inputs[0]) - _expr.const(0.5 / scalar_sq))
 
-
+def _mx_contrib_GAP(inputs,attrs):
+    return _op.nn.global_avg_pool2d(inputs[0])
 def _mx_roi_align_v2(inputs, attrs):
     new_attrs = {}
     new_attrs["pooled_size"] = attrs.get_int_tuple("pooled_size")
@@ -803,6 +804,7 @@ _convert_map = {
     "SoftmaxOutput" : _mx_softmax_output,
     "SoftmaxActivation" : _mx_softmax_activation,
     "smooth_l1"     : _mx_smooth_l1,
+    "_contrib_GAP"  : _mx_contrib_GAP,
     # vision
     "_contrib_BilinearResize2D" : _mx_resize,
     "_contrib_MultiBoxPrior" : _mx_multibox_prior,
