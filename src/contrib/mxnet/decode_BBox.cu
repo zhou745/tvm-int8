@@ -176,7 +176,7 @@ void Decode_BBoxOp::Forward(
 
 
 
-ProposalGPUOp::~ProposalGPUOp() {
+Decode_BBoxOp::~Decode_BBoxOp() {
   mshadow::FreeSpace(&bbox_mean_gpu);
   mshadow::FreeSpace(&bbox_std_gpu);
 }
