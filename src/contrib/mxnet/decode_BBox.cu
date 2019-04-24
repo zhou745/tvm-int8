@@ -68,6 +68,7 @@ __global__ void BBoxTransformInv(DType* boxes,
                                  const int num_class,
                                  const int boxes_1,const int boxes_2,
                                  const int bbox_deltas_1,const int bbox_deltas_2,
+                                 const int im_info_1,
                                  DType* bbox_mean,
                                  DType* bbox_std,
                                  const bool class_agnostic,
@@ -106,10 +107,11 @@ __global__ void BBoxTransformInv(DType* boxes,
       float pred_x2 = pred_ctr_x + 0.5f * (pred_w - 1.0f);
       float pred_y2 = pred_ctr_y + 0.5f * (pred_h - 1.0f);
       
-      pred_x1 = pred_x1<im_info[n][1] - 1.0f?pred_x1:im_info[n][1] - 1.0f;
-      pred_y1 = pred_y1<im_info[n][0] - 1.0f?pred_y1:im_info[n][0] - 1.0f;
-      pred_x2 = pred_x2<im_info[n][1] - 1.0f?pred_x2:im_info[n][1] - 1.0f;
-      pred_y2 = pred_y2<im_info[n][0] - 1.0f?pred_y2:im_info[n][0] - 1.0f;
+      offset = n*im_info_1;
+      pred_x1 = pred_x1<im_info[offset+1] - 1.0f?pred_x1:im_info[offset+1] - 1.0f;
+      pred_y1 = pred_y1<im_info[offset+0] - 1.0f?pred_y1:im_info[offset+0] - 1.0f;
+      pred_x2 = pred_x2<im_info[offset+1] - 1.0f?pred_x2:im_info[offset+1] - 1.0f;
+      pred_y2 = pred_y2<im_info[offset+0] - 1.0f?pred_y2:im_info[offset+0] - 1.0f;
 
       pred_x1 = pred_x1>0.0f?pred_x1:0.0f;
       pred_y1 = pred_y1>0.0f?pred_y1:0.0f;
@@ -156,13 +158,14 @@ void Decode_BBoxOp::Forward(
   int boxes_2 = boxes.size(2);
   int bbox_deltas_1 = bbox_deltas.size(0);
   int bbox_deltas_2 = bbox_deltas.size(0);
+  int im_info_1= im_info.size(1);
   int num_class = class_agnostic ? 1 : (bbox_deltas.size(2) / 4);
   int count = nbatch*boxes_1*num_class;
 
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
   BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,num_class,
-                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,
+                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,im_info_1,
                                           bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
 
