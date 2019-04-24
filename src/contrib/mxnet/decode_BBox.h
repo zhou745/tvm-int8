@@ -46,7 +46,6 @@ struct Decode_BBoxSign : public OpSignature {
     class_agnostic(args[4]) {
     this->bbox_mean = GetFloatVector_BBox(args, 5);
     this->bbox_std = GetFloatVector_BBox(args, 6 + this->bbox_mean.size());
-
     Reserve(24);
     AddSign(rois);
     AddSign(bbox_pred);
@@ -82,7 +81,10 @@ class Decode_BBoxOp : public ExternalOpBase<Decode_BBoxOp, Decode_BBoxSign> {
   int nbatch;
   bool class_agnostic;
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8f23929... fixed a bug where variable name was wrong
   mshadow::Tensor<gpu, 1> bbox_mean_gpu;
   mshadow::Tensor<gpu, 1> bbox_std_gpu;
 };  // class ProposalGPUOp
