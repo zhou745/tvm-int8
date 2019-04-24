@@ -208,6 +208,20 @@ struct ProposalAttrs : public tvm::AttrsNode<ProposalAttrs> {
   }
 };
 
+struct Decode_BBoxAttrs : public tvm::AttrsNode<Decode_BBoxAttrs> {
+  Array<IndexExpr> bbox_mean;
+  Array<IndexExpr> bbox_std;
+  bool class_agnostic;
+  TVM_DECLARE_ATTRS(Decode_BBoxAttrs, "relay.attrs.Decode_BBoxAttrs") {
+    TVM_ATTR_FIELD(bbox_mean)
+        .set_default(Array<IndexExpr>({0.0f, 0.0f, 0.0f, 0.0f}))
+        .describe("mean of bounding box");
+    TVM_ATTR_FIELD(bbox_std)
+        .set_default(Array<IndexExpr>({0.1f, 0.1f, 0.1f,0.1f}))
+        .describe("std of bounding box");
+    TVM_ATTR_FIELD(class_agnostic).set_default(false).describe("...");
+  }
+};
 
 struct PostDetectionAttrs : public tvm::AttrsNode<PostDetectionAttrs> {
   double thresh, nms_thresh_lo, nms_thresh_hi;
