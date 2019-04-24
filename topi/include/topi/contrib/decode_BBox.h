@@ -13,7 +13,7 @@ namespace topi {
 using namespace tvm;
 using namespace topi::detail;
 
-inline void UnpackArray(Array<Expr>* target, const Array<Expr>& src) {
+inline void UnpackArray_BBox(Array<Expr>* target, const Array<Expr>& src) {
   target->push_back(Expr(src.size()));
   for (auto&& v : src) {
     target->push_back(Expr(v));
@@ -57,8 +57,8 @@ inline Tensor decode_BBox(const Tensor& rois, const Tensor& bbox_pred, const Ten
           pack_buffer(outs[0]),
           Expr(class_agnostic)
       };
-      UnpackArray(&args, bbox_mean);
-      UnpackArray(&args, bbox_std);
+      UnpackArray_BBox(&args, bbox_mean);
+      UnpackArray_BBox(&args, bbox_std);
 
       return call_packed(args);
     }, "decode_BBox", "", {})[0];
