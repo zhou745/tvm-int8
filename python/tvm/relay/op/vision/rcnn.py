@@ -135,6 +135,40 @@ def proposal(cls_prob,
     return _make.proposal(cls_prob, bbox_pred, im_info, scales, ratios, feature_stride, threshold,
                           rpn_pre_nms_top_n, rpn_post_nms_top_n, rpn_min_size, iou_loss)
 
+def decode_BBox(rois,
+             bbox_pred,
+             im_info,
+             bbox_mean,
+             bbox_std,
+             class_agnostic):
+    """decode_BBox operator.
+
+    Parameters
+    ----------
+    rois : relay.Expr
+        3-D tensor.
+
+    bbox_pred : relay.Expr
+        3-D tensor.
+
+    im_info : relay.Expr
+        2-D tensor with shape [batch, 3]. The last dimension should be in format of
+        [im_height, im_width, im_scale]
+
+    bbox_mean :mean of bounding box.
+
+    bbox_std : std of bounding box.
+
+    class_agnostic : bool
+
+    Returns
+    -------
+    output : relay.Expr
+        2-D tensor with shape [batch * rpn_post_nms_top_n, 5]. The last dimension is in format of
+        [batch_index, w_start, h_start, w_end, h_end].
+    """
+    return _make.decode_BBox(rois, bbox_pred, im_info, bbox_mean, bbox_std, class_agnostic)
+
 def roi_align_v2(data, rois, pooled_size, spatial_scale, layout='NCHW'):
     """ROI align operator.
 

@@ -518,6 +518,12 @@ def _mx_proposal(inputs, attrs):
     assert not attrs.get_bool("output_score", False), "proposal doesn't support output score"
     return _op.vision.proposal(inputs[0], inputs[1], inputs[2], **new_attrs)
 
+def _mx_decode_BBox(inputs, attrs):
+    new_attrs = {}
+    new_attrs["bbox_mean"] = attrs.get_float_tuple("bbox_mean", (0., 0., 0., 0.))
+    new_attrs["bbox_std"] = attrs.get_float_tuple("bbox_std", (0.1, 0.1, 0.1,0.1))
+
+    return _op.vision.decode_BBox(inputs[0], inputs[1], inputs[2], **new_attrs)
 
 def _mx_box_nms(inputs, attrs):
     force_suppress = attrs.get_bool("force_suppress", False)
@@ -812,6 +818,7 @@ _convert_map = {
     "_contrib_ROIAlign" : _mx_roi_align,
     "ROIPooling"        : _mx_roi_pooling,
     "_contrib_Proposal" : _mx_proposal,
+    "_contrib_decode_BBox" : _mx_decode_BBox,
     "_contrib_MultiProposal" : _mx_proposal,
     "_contrib_box_nms" : _mx_box_nms,
     "_contrib_DeformableConvolution" : _mx_deformable_convolution,

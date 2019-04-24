@@ -81,6 +81,25 @@ def schedule_proposal(_, outs, target):
 
 reg.register_pattern("vision.proposal", OpPattern.OPAQUE)
 
+def compute_decode_BBox(attrs, inputs, _, target):
+    """Compute definition of proposal"""
+    bbox_mean = get_float_tuple(attrs.bbox_mean)
+    bbox_std = get_float_tuple(attrs.bbox_std)
+    class_agnostic = bool(get_const_int(attrs.class_agnostic))
+    with target:
+        return [
+            topi.vision.rcnn.decode_BBox(inputs[0], inputs[1], inputs[2], bbox_mean, bbox_std,
+                                        class_agnostic)
+        ]
+
+@reg.register_schedule("vision.decode_BBox")
+def schedule_decode_BBox(_, outs, target):
+    """Schedule definition of proposal"""
+    with target:
+        return topi.generic.schedule_decode_BBox(outs)
+
+reg.register_pattern("vision.decode_BBox", OpPattern.OPAQUE)
+
 @reg.register_compute("vision.roi_align_v2")
 def compute_roi_align_v2(attrs, inputs, _, target):
     """Compute definition of roi_align_v2"""
