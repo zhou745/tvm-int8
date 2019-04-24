@@ -96,8 +96,8 @@ __global__ void BBoxTransformInv(DType* boxes,
 
       float pred_ctr_x = dx * width + ctr_x;
       float pred_ctr_y = dy * height + ctr_y;
-      float pred_w = exp(dw) * width;
-      float pred_h = exp(dh) * height;
+      float pred_w = ::exp(dw) * width;
+      float pred_h = ::exp(dh) * height;
 
       float pred_x1 = pred_ctr_x - 0.5f * (pred_w - 1.0f);
       float pred_y1 = pred_ctr_y - 0.5f * (pred_h - 1.0f);
