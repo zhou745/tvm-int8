@@ -161,13 +161,16 @@ void Decode_BBoxOp::Forward(
   int bbox_deltas_1 = bbox_deltas.size(0);
   int bbox_deltas_2 = bbox_deltas.size(0);
   int im_info_1= im_info.size(1);
+  int out_1 = out.size(1);
+  int out_2 = out.size(2)
   int num_class = class_agnostic ? 1 : (bbox_deltas.size(2) / 4);
   int count = nbatch*boxes_1*num_class;
 
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
   BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,num_class,
-                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,im_info_1,
+                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,
+                                          im_info_1,out_1,out_2,
                                           bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
 
