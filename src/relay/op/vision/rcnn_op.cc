@@ -260,7 +260,7 @@ Expr MakeDecode_BBox(Expr rois, Expr bbox_pred, Expr im_info, Array<IndexExpr> b
 
 TVM_REGISTER_API("relay.op.vision._make.decode_BBox")
 .set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 11>(MakeDecode_BBox, args, rv);
+    runtime::detail::unpack_call<Expr, 6>(MakeDecode_BBox, args, rv);
   });
 
 RELAY_REGISTER_OP("vision.decode_BBox")
