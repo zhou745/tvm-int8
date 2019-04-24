@@ -46,6 +46,7 @@ struct Decode_BBoxSign : public OpSignature {
     class_agnostic(args[4]) {
     this->bbox_mean = GetFloatVector_BBox(args, 5);
     this->bbox_std = GetFloatVector_BBox(args, 6 + this->bbox_mean.size());
+
     Reserve(24);
     AddSign(rois);
     AddSign(bbox_pred);
@@ -80,6 +81,7 @@ class Decode_BBoxOp : public ExternalOpBase<Decode_BBoxOp, Decode_BBoxSign> {
   std::vector<float> bbox_mean, bbox_std;
   int nbatch;
   bool class_agnostic;
+
 
   mshadow::Tensor<gpu, 1> bbox_mean_gpu;
   mshadow::Tensor<gpu, 1> bbox_std_gpu;

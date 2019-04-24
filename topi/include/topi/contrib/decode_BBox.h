@@ -38,8 +38,8 @@ inline Tensor decode_BBox(const Tensor& rois, const Tensor& bbox_pred, const Ten
           pack_buffer(outs[0]),
           Expr(class_agnostic)
       };
-      UnpackArray(&args, bbox_mean);
-      UnpackArray(&args, bbox_std);
+      UnpackArray_BBox(&args, bbox_mean);
+      UnpackArray_BBox(&args, bbox_std);
 
       return call_packed(args);
     }, "decode_BBox", "", {})[0];
