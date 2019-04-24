@@ -522,7 +522,7 @@ def _mx_decode_BBox(inputs, attrs):
     new_attrs = {}
     new_attrs["bbox_mean"] = attrs.get_float_tuple("bbox_mean", (0., 0., 0., 0.))
     new_attrs["bbox_std"] = attrs.get_float_tuple("bbox_std", (0.1, 0.1, 0.1,0.1))
-
+    new_attrs["class_agnostic"] = attrs.get_bool("class_agnostic", False)
     return _op.vision.decode_BBox(inputs[0], inputs[1], inputs[2], **new_attrs)
 
 def _mx_box_nms(inputs, attrs):
