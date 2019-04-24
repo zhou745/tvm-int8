@@ -162,7 +162,7 @@ void Decode_BBoxOp::Forward(
   int bbox_deltas_2 = bbox_deltas.size(0);
   int im_info_1= im_info.size(1);
   int out_1 = out.size(1);
-  int out_2 = out.size(2)
+  int out_2 = out.size(2);
   int num_class = class_agnostic ? 1 : (bbox_deltas.size(2) / 4);
   int count = nbatch*boxes_1*num_class;
 
