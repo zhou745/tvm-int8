@@ -523,6 +523,7 @@ def _mx_decode_BBox(inputs, attrs):
     new_attrs["bbox_mean"] = attrs.get_float_tuple("bbox_mean", (0., 0., 0., 0.))
     new_attrs["bbox_std"] = attrs.get_float_tuple("bbox_std", (0.1, 0.1, 0.1,0.1))
     new_attrs["class_agnostic"] = attrs.get_bool("class_agnostic", False)
+
     return _op.vision.decode_BBox(inputs[0], inputs[1], inputs[2], **new_attrs)
 
 def _mx_box_nms(inputs, attrs):
@@ -818,7 +819,11 @@ _convert_map = {
     "_contrib_ROIAlign" : _mx_roi_align,
     "ROIPooling"        : _mx_roi_pooling,
     "_contrib_Proposal" : _mx_proposal,
+<<<<<<< HEAD
     "_contrib_DecodeBBox" : _mx_decode_BBox,
+=======
+    "_contrib_decode_BBox" : _mx_decode_BBox,
+>>>>>>> c245456... regist in vision4
     "_contrib_MultiProposal" : _mx_proposal,
     "_contrib_box_nms" : _mx_box_nms,
     "_contrib_DeformableConvolution" : _mx_deformable_convolution,
