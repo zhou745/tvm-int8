@@ -65,8 +65,9 @@ template<typename DType>
 __global__ void BBoxTransformInv(DType* boxes,
                                  DType* bbox_deltas,
                                  const int count,
-                                 const int rois_num,
                                  const int num_class,
+                                 const int boxes_1,const int boxes_2,
+                                 const int bbox_deltas_1,const int bbox_deltas_2,
                                  DType* bbox_mean,
                                  DType* bbox_std,
                                  const bool class_agnostic,
@@ -79,20 +80,21 @@ __global__ void BBoxTransformInv(DType* boxes,
   
   //compute if cidx is less than count
   if(cidx<count){
-      int n = cidx/(rois_num*num_class);
-      int index = cidx%(rois_num*num_class)/num_class;
+      int n = cidx/(boxes_1*num_class);
+      int index = cidx%(boxes_1*num_class)/num_class;
       int cls = cidx%num_class;
-
-      float width = boxes[n][index][2] - boxes[n][index][0] + 1.0f;
-      float height = boxes[n][index][3] - boxes[n][index][1] + 1.0f;
-      float ctr_x = boxes[n][index][0] + 0.5f * (width - 1.0f);
-      float ctr_y = boxes[n][index][1] + 0.5f * (height - 1.0f);
+      int offset = n*boxes_1*boxes_2+index*boxes_2;
+      float width = boxes[offset+2] - boxes[offset] + 1.0f;
+      float height = boxes[offset+3] - boxes[offset+1] + 1.0f;
+      float ctr_x = boxes[offset] + 0.5f * (width - 1.0f);
+      float ctr_y = boxes[offset+1] + 0.5f * (height - 1.0f);
 
       int decode_cls = class_agnostic ? 1 : cls;
-      float dx = bbox_deltas[n][index][decode_cls*4+0] * bbox_std[0] + bbox_mean[0];
-      float dy = bbox_deltas[n][index][decode_cls*4+1] * bbox_std[1] + bbox_mean[1];
-      float dw = bbox_deltas[n][index][decode_cls*4+2] * bbox_std[2] + bbox_mean[2];
-      float dh = bbox_deltas[n][index][decode_cls*4+3] * bbox_std[3] + bbox_mean[3];
+      offset = n*bbox_deltas_1*bbox_deltas_2+index*bbox_deltas_2;
+      float dx = bbox_deltas[offset+decode_cls*4+0] * bbox_std[0] + bbox_mean[0];
+      float dy = bbox_deltas[offset+decode_cls*4+1] * bbox_std[1] + bbox_mean[1];
+      float dw = bbox_deltas[offset+decode_cls*4+2] * bbox_std[2] + bbox_mean[2];
+      float dh = bbox_deltas[offset+decode_cls*4+3] * bbox_std[3] + bbox_mean[3];
 
       float pred_ctr_x = dx * width + ctr_x;
       float pred_ctr_y = dy * height + ctr_y;
@@ -150,13 +152,17 @@ void Decode_BBoxOp::Forward(
                               cudaMemcpyHostToDevice));
 
   //decode bbox
-  int rois_num = boxes.size(1);
+  int boxes_1 = boxes.size(1);
+  int boxes_2 = boxes.size(2);
+  int bbox_deltas_1 = bbox_deltas.size(0);
+  int bbox_deltas_2 = bbox_deltas.size(0);
   int num_class = class_agnostic ? 1 : (bbox_deltas.size(2) / 4);
-  int count = nbatch*rois_num*num_class;
+  int count = nbatch*boxes_1*num_class;
 
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
-  BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count, rois_num,num_class,
+  BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,num_class,
+                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,
                                           bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
 
