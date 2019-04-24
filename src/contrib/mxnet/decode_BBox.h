@@ -20,7 +20,7 @@ using mshadow::gpu;
 using namespace mshadow;
 using namespace mshadow::expr;
 
-inline std::vector<float> GetFloatVector(const TVMArgs& args, int index) {
+inline std::vector<float> GetFloatVector_BBox(const TVMArgs& args, int index) {
   size_t size = args[index];
   std::vector<float> result;
   result.reserve(size);
@@ -45,8 +45,8 @@ struct Decode_BBoxSign : public OpSignature {
     im_info(args[2]),
     class_agnostic(args[4]) {
 
-    this->bbox_mean = GetFloatVector(args, 5);
-    this->bbox_std = GetFloatVector(args, 5 + this->bbox_mean.size());
+    this->bbox_mean = GetFloatVector_BBox(args, 5);
+    this->bbox_std = GetFloatVector_BBox(args, 5 + this->bbox_mean.size());
 
     Reserve(24);
     AddSign(rois);

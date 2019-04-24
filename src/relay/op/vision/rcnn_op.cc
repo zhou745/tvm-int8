@@ -242,7 +242,7 @@ bool Decode_BBoxRel(const Array<Type>& types, int num_inputs, const Attrs& attrs
         reporter->Assign(types[3], TensorTypeNode::make(oshape, bbox_pred->dtype));
   } else {
         std::vector<IndexExpr> oshape(
-        bbox_pred->shape);
+        {bbox_pred->shape[0],bbox_pred->shape[1],bbox_pred->shape[2]});
         reporter->Assign(types[3], TensorTypeNode::make(oshape, bbox_pred->dtype));
   }
   return true;
