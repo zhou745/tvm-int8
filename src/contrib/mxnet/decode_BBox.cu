@@ -157,7 +157,7 @@ void Decode_BBoxOp::Forward(
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
   BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count, rois_num,num_class,
-                                          bbox_mean.dptr_, bbox_std.dptr_, class_agnostic,
+                                          bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
 
   FRCNN_CUDA_CHECK(cudaPeekAtLastError());
