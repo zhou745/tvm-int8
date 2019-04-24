@@ -236,7 +236,7 @@ bool Decode_BBoxRel(const Array<Type>& types, int num_inputs, const Attrs& attrs
   CHECK(reporter->AssertEQ(im_info->shape[1], 3));
 
   
-  if(Decode_BBox_attrs->class_agnostic){
+  if(decode_BBox_attrs->class_agnostic){
         std::vector<IndexExpr> oshape(
         {rois->shape[0],rois->shape[1],4});
         reporter->Assign(types[3], TensorTypeNode::make(oshape, bbox_pred->dtype));
