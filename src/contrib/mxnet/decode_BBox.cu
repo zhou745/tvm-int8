@@ -69,6 +69,7 @@ __global__ void BBoxTransformInv(DType* boxes,
                                  const int boxes_1,const int boxes_2,
                                  const int bbox_deltas_1,const int bbox_deltas_2,
                                  const int im_info_1,
+                                 const int out_1,const int out_2,
                                  DType* bbox_mean,
                                  DType* bbox_std,
                                  const bool class_agnostic,
@@ -117,11 +118,12 @@ __global__ void BBoxTransformInv(DType* boxes,
       pred_y1 = pred_y1>0.0f?pred_y1:0.0f;
       pred_x2 = pred_x2>0.0f?pred_x2:0.0f;
       pred_y2 = pred_y2>0.0f?pred_y2:0.0f;
-
-      out[n][index][cls*4+0] = pred_x1;
-      out[n][index][cls*4+1] = pred_y1;
-      out[n][index][cls*4+2] = pred_x2;
-      out[n][index][cls*4+3] = pred_y2;
+      
+      offset = n*out_1*out_2+index*out_2;
+      out[offset+cls*4+0] = pred_x1;
+      out[offset+cls*4+1] = pred_y1;
+      out[offset+cls*4+2] = pred_x2;
+      out[offset+cls*4+3] = pred_y2;
   }
 
 }
