@@ -818,7 +818,7 @@ _convert_map = {
     "_contrib_ROIAlign" : _mx_roi_align,
     "ROIPooling"        : _mx_roi_pooling,
     "_contrib_Proposal" : _mx_proposal,
-    "_contrib_decode_BBox" : _mx_decode_BBox,
+    "_contrib_DecodeBBox" : _mx_decode_BBox,
     "_contrib_MultiProposal" : _mx_proposal,
     "_contrib_box_nms" : _mx_box_nms,
     "_contrib_DeformableConvolution" : _mx_deformable_convolution,
