@@ -64,9 +64,9 @@ using tvm::relay::IndexExpr;
 template<typename DType>
 __global__ void BBoxTransformInv(DType* boxes,
                                  DType* bbox_deltas,
-                                 const int count;
-                                 const int rois_num;
-                                 const int num_class;
+                                 const int count,
+                                 const int rois_num,
+                                 const int num_class,
                                  const DType* bbox_mean,
                                  const DType* bbox_std,
                                  const bool class_agnostic,
