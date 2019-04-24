@@ -175,8 +175,8 @@ void Decode_BBoxOp::Forward(
                                           im_info.dptr_, out.dptr_);
 
   FRCNN_CUDA_CHECK(cudaPeekAtLastError());
-  }
 }
+
 
 Decode_BBoxOp::~Decode_BBoxOp() {
   mshadow::FreeSpace(&bbox_mean_gpu);
