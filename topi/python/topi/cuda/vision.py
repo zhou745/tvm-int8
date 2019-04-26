@@ -184,6 +184,31 @@ def schedule_proposal(outs):
     traverse(outs[0].op)
     return s
 
+@generic.schedule_decode_BBox.register(["cuda", "gpu"])
+def schedule_decode_BBox(outs):
+    """Schedule for decode_BBox operator.
+
+    Parameters
+    ----------
+    outs: Array of Tensor
+      The computation graph description of proposal
+      in the format of an array of tensors.
+
+    Returns
+    -------
+    s: Schedule
+      The computation schedule for the op.
+    """
+    outs = [outs] if isinstance(outs, tvm.tensor.Tensor) else outs
+    s = tvm.create_schedule([x.op for x in outs])
+
+    tvm.schedule.AutoInlineInjective(s)
+    for out in outs:
+        if isinstance(out.op, tvm.tensor.ExternOp):
+            continue
+        _schedule_injective(out.op, s)
+    return s
+
 @generic.schedule_roi_align_v2.register(["cuda", "gpu"])
 def schedule_roi_align_v2(outs):
     outs = [outs] if isinstance(outs, tvm.tensor.Tensor) else outs
