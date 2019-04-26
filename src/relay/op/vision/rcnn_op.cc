@@ -43,6 +43,7 @@ bool ROIAlignRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
   const auto& dshape = data->shape;
   const auto& rshape = rois->shape;
   CHECK(roi_align_attrs);
+  //std::cout<<"the data shape is "<<dshape.size()<<std::endl;
   CHECK_EQ(dshape.size(), 4) << "Input data should be 4-D.";
   CHECK_EQ(rshape.size(), 2) << "Input rois should be 2-D.";
   CHECK_EQ(roi_align_attrs->layout, "NCHW") << "ROI Align only supports NCHW layout";

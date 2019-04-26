@@ -890,7 +890,7 @@ def _from_mxnet_impl(symbol, shape_dict, dtype_info):
             if not skip:
                 res = _convert_map[op_name](children, attrs)
             else:
-                res = node_map[nid_papa]
+                res=node_map[nid_papa]
             if isinstance(res, (_expr.TupleWrapper, tuple, list)):
                 pass
             elif isinstance(res, _expr.Expr):

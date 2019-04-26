@@ -348,7 +348,7 @@ def calibrate(graph, dataset=None):
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         val = np.amax(np.abs(arr))
-        return(val if val > 1 else 1.0)
+        #return(val if val > 1 else 1.0)
        	return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
     def kld(arr):
@@ -462,6 +462,7 @@ def quantize(graph, params=None, dataset=None):
                   "CanonicalizeOps"]
     with _build.build_config(add_pass=opt_passes):
         graph = _build.optimize(graph, params=params)
+    print("optimize finished")
     graph = annotate(graph)
     graph = calibrate(graph, dataset)
     print(graph)
