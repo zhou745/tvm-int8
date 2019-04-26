@@ -227,8 +227,8 @@ bool Decode_BBoxRel(const Array<Type>& types, int num_inputs, const Attrs& attrs
     return false;
   }
 
-  CHECK_EQ(rois->shape.size(), 3U)
-      << "The dimension of class probability should be 3, but received " << rois->shape.size();
+  CHECK_EQ(rois->shape.size(), 2U)
+      << "The dimension of class probability should be 2, but received " << rois->shape.size();
   CHECK_EQ(bbox_pred->shape.size(), 3U)
       << "The dimension of box prediction should be 3, but received " << bbox_pred->shape.size();
   CHECK_EQ(im_info->shape.size(), 2U)
@@ -238,7 +238,7 @@ bool Decode_BBoxRel(const Array<Type>& types, int num_inputs, const Attrs& attrs
   
   if(decode_BBox_attrs->class_agnostic){
         std::vector<IndexExpr> oshape(
-        {rois->shape[0],rois->shape[1],4});
+        {bbox_pred->shape[0],bbox_pred->shape[1],4});
         reporter->Assign(types[3], TensorTypeNode::make(oshape, bbox_pred->dtype));
   } else {
         std::vector<IndexExpr> oshape(

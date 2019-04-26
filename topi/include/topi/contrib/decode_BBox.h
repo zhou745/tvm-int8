@@ -26,7 +26,7 @@ inline Tensor decode_BBox(const Tensor& rois, const Tensor& bbox_pred, const Ten
                         bool class_agnostic) {
   if(class_agnostic){
   return make_extern(
-    {{rois->shape[0],rois->shape[1],4}},
+    {{bbox_pred->shape[0],bbox_pred->shape[1],4}},
     {bbox_pred->dtype},
     {rois, bbox_pred, im_info},
     [&](Array<Buffer> ins, Array<Buffer> outs) {

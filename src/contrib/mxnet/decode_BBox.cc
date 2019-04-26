@@ -18,7 +18,7 @@ TVM_REGISTER_GLOBAL("tvm.contrib.mxnet.decode_BBox")
   DLTensor* im_info = args[2];
   DLTensor* out = args[3];
 
-  auto boxes_tensor = ToTensor<mshadow::gpu, 3, float>(boxes);
+  auto boxes_tensor = ToTensor<mshadow::gpu, 2, float>(boxes);
   auto bbox_delta_tensor = ToTensor<mshadow::gpu, 3, float>(bbox_delta);
   auto im_info_tensor = ToTensor<mshadow::gpu, 2, float>(im_info);
   auto out_tensor = ToTensor<mshadow::gpu, 3, float>(out);

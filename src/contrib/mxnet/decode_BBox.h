@@ -65,7 +65,7 @@ class Decode_BBoxOp : public ExternalOpBase<Decode_BBoxOp, Decode_BBoxSign> {
   friend BaseType;
   void Forward(
         // batch_idx, anchor_idx, height_idx, width_idx
-        mshadow::Tensor<gpu, 3, float>& boxes,
+        mshadow::Tensor<gpu, 2, float>& boxes,
         // batch_idx, height_idx, width_idx, anchor_idx
         mshadow::Tensor<gpu, 3, float>& bbox_deltas,
         // batch_idx, 3(height, width, scale)

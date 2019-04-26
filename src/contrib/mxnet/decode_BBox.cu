@@ -65,11 +65,8 @@ template<typename DType>
 __global__ void BBoxTransformInv(DType* boxes,
                                  DType* bbox_deltas,
                                  const int count,
-                                 const int num_class,
-                                 const int boxes_1,const int boxes_2,
-                                 const int bbox_deltas_1,const int bbox_deltas_2,
+                                 const int nbatch,const int nrois,const int num_class,
                                  const int im_info_1,
-                                 const int out_1,const int out_2,
                                  DType* bbox_mean,
                                  DType* bbox_std,
                                  const bool class_agnostic,
@@ -82,17 +79,18 @@ __global__ void BBoxTransformInv(DType* boxes,
   
   //compute if cidx is less than count
   if(cidx<count){
-      int n = cidx/(boxes_1*num_class);
-      int index = cidx%(boxes_1*num_class)/num_class;
+      int n = cidx/(nrois*num_class);
+      int rois_idx = cidx/num_class%nrois;
       int cls = cidx%num_class;
-      int offset = n*boxes_1*boxes_2+index*boxes_2;
+
+      int offset = n*5*nrois+rois_idx*5;
       float width = boxes[offset+2] - boxes[offset] + 1.0f;
       float height = boxes[offset+3] - boxes[offset+1] + 1.0f;
       float ctr_x = boxes[offset] + 0.5f * (width - 1.0f);
       float ctr_y = boxes[offset+1] + 0.5f * (height - 1.0f);
 
       int decode_cls = class_agnostic ? 1 : cls;
-      offset = n*bbox_deltas_1*bbox_deltas_2+index*bbox_deltas_2;
+      offset = n*nrois*4*num_class+rois_idx*4*num_class;
       float dx = bbox_deltas[offset+decode_cls*4+0] * bbox_std[0] + bbox_mean[0];
       float dy = bbox_deltas[offset+decode_cls*4+1] * bbox_std[1] + bbox_mean[1];
       float dw = bbox_deltas[offset+decode_cls*4+2] * bbox_std[2] + bbox_mean[2];
@@ -119,7 +117,7 @@ __global__ void BBoxTransformInv(DType* boxes,
       pred_x2 = pred_x2>0.0f?pred_x2:0.0f;
       pred_y2 = pred_y2>0.0f?pred_y2:0.0f;
       
-      offset = n*out_1*out_2+index*out_2;
+      offset = n*nrois*4*num_class+rois_idx*4*num_class;
       out[offset+cls*4+0] = pred_x1;
       out[offset+cls*4+1] = pred_y1;
       out[offset+cls*4+2] = pred_x2;
@@ -139,7 +137,7 @@ Decode_BBoxOp::Decode_BBoxOp(const Decode_BBoxSign& param) {
 }
 
 void Decode_BBoxOp::Forward(
-             mshadow::Tensor<gpu, 3, float>& boxes,
+             mshadow::Tensor<gpu, 2, float>& boxes,
              mshadow::Tensor<gpu, 3, float>& bbox_deltas,
              mshadow::Tensor<gpu, 2, float>& im_info,
              mshadow::Tensor<gpu, 3, float>& out) {
@@ -156,21 +154,19 @@ void Decode_BBoxOp::Forward(
                               cudaMemcpyHostToDevice));
 
   //decode bbox
-  int boxes_1 = boxes.size(1);
-  int boxes_2 = boxes.size(2);
-  int bbox_deltas_1 = bbox_deltas.size(0);
-  int bbox_deltas_2 = bbox_deltas.size(0);
+  int nbatch = bbox_deltas.size(0);
+  int nrois = bbox_deltas.size(1);
+  int xy_in_group4 = bbox_deltas.size(2);
   int im_info_1= im_info.size(1);
-  int out_1 = out.size(1);
-  int out_2 = out.size(2);
-  int num_class = class_agnostic ? 1 : (bbox_deltas.size(2) / 4);
-  int count = nbatch*boxes_1*num_class;
+
+  int num_class = class_agnostic ? 1 : (xy_in_group4 / 4);
+  int count = nbatch*nrois*num_class;
 
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
-  BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,num_class,
-                                          boxes_1,boxes_2,bbox_deltas_1,bbox_deltas_2,
-                                          im_info_1,out_1,out_2,
+  BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,
+                                          nbatch,nrois,num_class,
+                                          im_info_1,
                                           bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
 
