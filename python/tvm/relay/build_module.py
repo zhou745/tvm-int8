@@ -174,11 +174,9 @@ def optimize(func, target=None, params=None):
     # bind expressions
     if params:
         func = _bind_params_by_name(func, params)
-
     if cfg.pass_enabled("SimplifyInference"):
         func = ir_pass.infer_type(func)
         func = ir_pass.simplify_inference(func)
-
     if cfg.pass_enabled("EliminateCommonSubexpr"):
         def fskip(expr):
             if isinstance(expr, _expr.Call) and expr.op.name == 'cast' and \
@@ -197,7 +195,6 @@ def optimize(func, target=None, params=None):
     # to check the constantness and positiveness of scales.
     if cfg.pass_enabled("FoldConstant"):
         func = ir_pass.fold_constant(func)
-
     if cfg.pass_enabled("FoldScaleAxis"):
         func = ir_pass.infer_type(func)
         func = ir_pass.backward_fold_scale_axis(func)

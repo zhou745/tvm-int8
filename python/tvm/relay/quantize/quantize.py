@@ -462,7 +462,6 @@ def quantize(graph, params=None, dataset=None):
                   "CanonicalizeOps"]
     with _build.build_config(add_pass=opt_passes):
         graph = _build.optimize(graph, params=params)
-
     graph = annotate(graph)
     graph = calibrate(graph, dataset)
     print(graph)

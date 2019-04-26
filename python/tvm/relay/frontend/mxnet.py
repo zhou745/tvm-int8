@@ -863,12 +863,22 @@ def _from_mxnet_impl(symbol, shape_dict, dtype_info):
     jgraph = json.loads(symbol.tojson())
     jnodes = jgraph["nodes"]
     node_map = {}
-
+    roialign_map = {}
     for nid, node in enumerate(jnodes):
         children = [node_map[e[0]][e[1]] for e in node["inputs"]]
         attrs = StrAttrsDict(node.get("attrs", {}))
         node_name = node["name"]
         op_name = node["op"]
+        if(op_name=="_contrib_ROIAlign_v2"):
+           roialign_map[nid]=0
+        skip=False
+        nid_papa=0
+        if(op_name=="reshape" or op_name=="Reshape"):
+           for e in node["inputs"]:
+               if(e[0] in roialign_map.keys()):
+                   nid_papa=e[0]
+                   skip=True
+                   break
         if op_name == "null":
             shape = shape_dict[node_name] if node_name in shape_dict else None
             if isinstance(dtype_info, dict):
@@ -877,7 +887,10 @@ def _from_mxnet_impl(symbol, shape_dict, dtype_info):
                 dtype = dtype_info
             node_map[nid] = [_expr.var(node_name, shape=shape, dtype=dtype)]
         elif op_name in _convert_map:
-            res = _convert_map[op_name](children, attrs)
+            if not skip:
+                res = _convert_map[op_name](children, attrs)
+            else:
+                res = node_map[nid_papa]
             if isinstance(res, (_expr.TupleWrapper, tuple, list)):
                 pass
             elif isinstance(res, _expr.Expr):
