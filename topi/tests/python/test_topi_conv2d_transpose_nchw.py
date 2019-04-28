@@ -22,7 +22,7 @@ import topi.testing
 from tvm.contrib.pickle_memoize import memoize
 from topi.util import get_const_tuple
 
-from common import get_all_backend
+from common import get_all_backend, Int8Fallback
 
 def verify_conv2d_transpose_nchw(batch, in_channel, in_size, num_filter, kernel, stride, padding):
     in_height = in_width = in_size
@@ -71,6 +71,60 @@ def verify_conv2d_transpose_nchw(batch, in_channel, in_size, num_filter, kernel,
         check_device(device)
 
 
+def verify_conv2d_transpose_NCHWc_int8(batch, in_channel, in_size, num_filter, kernel, stride, padding):
+    oc_block_factor = 4
+    in_height = in_width = in_size
+
+    A = tvm.placeholder((batch, in_channel, in_height, in_width), name='A', dtype='int8')
+    W = tvm.placeholder((in_channel, num_filter, kernel, kernel), name='W', dtype='int8')
+
+    a_shape = get_const_tuple(A.shape)
+    w_shape = get_const_tuple(W.shape)
+    dtype = A.dtype
+
+    #@memoize("topi.tests.test_topi_conv2d_transpose.verify_conv2d_transpose_NCHWc_int8")
+    def get_ref_data():
+        a_np = np.random.randint(low=-128, high=127, size=a_shape).astype(dtype)
+        w_np = np.random.randint(low=-128, high=127, size=w_shape).astype(dtype)
+        b_np = topi.testing.conv2d_transpose_nchw_python(a_np, w_np, stride, padding).astype(dtype)
+        b_np = b_np.reshape((b_np.shape[0], b_np.shape[1] // oc_block_factor, oc_block_factor, \
+                b_np.shape[2], b_np.shape[3])).transpose(0, 1, 3, 4, 2)
+        c_np = np.maximum(b_np, 0)
+        return a_np, w_np, b_np, c_np
+
+    a_np, w_np, b_np, c_np = get_ref_data()
+
+    def check_device(device):
+        ctx = tvm.context(device, 0)
+        if not ctx.exist:
+            print("Skip because %s is not enabled" % device)
+            return
+        if device == "cuda" and not tvm.contrib.nvcc.have_int8(ctx.compute_version):
+            print("Skip because int8 intrinsics are not available")
+            return
+        print("Running on target: %s" % device)
+        with tvm.target.create(device):
+            B = topi.nn.conv2d_transpose_nchw(A, W, [stride, stride], [padding, padding], A.dtype)
+            C = topi.nn.relu(B)
+            s1 = topi.generic.schedule_conv2d_transpose_nchw([B])
+            s2 = topi.generic.schedule_conv2d_transpose_nchw([C])
+        a = tvm.nd.array(a_np, ctx)
+        w = tvm.nd.array(w_np, ctx)
+        b = tvm.nd.array(np.zeros(get_const_tuple(B.shape), dtype=B.dtype), ctx)
+        c = tvm.nd.array(np.zeros(get_const_tuple(C.shape), dtype=C.dtype), ctx)
+
+        print(tvm.lower(s1, [A, W, B], simple_mode=True))
+        func1 = tvm.build(s1, [A, W, B], device)
+        #func2 = tvm.build(s2, [A, W, C], device)
+        func1(a, w, b)
+        #func2(a, w, c)
+        tvm.testing.assert_allclose(b.asnumpy(), b_np, rtol=1e-5)
+        #tvm.testing.assert_allclose(c.asnumpy(), c_np, rtol=1e-5)
+
+    for device in ['cuda']:
+        check_device(device)
+
+
 def test_conv2d_transpose_nchw():
     verify_conv2d_transpose_nchw(1, 3, 224, 32, 3, 1, 0)
     verify_conv2d_transpose_nchw(1, 3, 224, 32, 3, 2, 1)
@@ -78,5 +132,12 @@ def test_conv2d_transpose_nchw():
     verify_conv2d_transpose_nchw(1, 32, 32, 128, 5, 2, 1)
 
 
+def test_conv2d_transpose_NCHWc_int8():
+    with Int8Fallback():
+        verify_conv2d_transpose_NCHWc_int8(1, 32, 32, 128, 5, 1, 0)
+        verify_conv2d_transpose_NCHWc_int8(1, 32, 32, 128, 5, 2, 1)
+
+
 if __name__ == "__main__":
-    test_conv2d_transpose_nchw()
+    #test_conv2d_transpose_nchw()
+    test_conv2d_transpose_NCHWc_int8()

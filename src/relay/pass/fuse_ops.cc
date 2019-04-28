@@ -836,7 +836,7 @@ class FuseMutator : private ExprMutator {
       for (size_t i = 0; i < new_fields.size(); i++) {
         // Copy function arguments to tuple field of the output because currently graph memory
         // planer doesn't support inplace operations
-        if (new_fields[i].as<VarNode>()) {
+        if (new_fields[i].as<VarNode>() || (new_fields[i].as<TupleGetItemNode>() && new_fields[i].as<TupleGetItemNode>()->tuple.as<VarNode>())) {
           auto copy = Copy(new_fields[i]);
           new_fields.Set(i, copy);
         }

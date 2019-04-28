@@ -35,6 +35,10 @@ def simulated_quantize_compute(attrs, inputs, out_type, target):
     """Compiler for simulated_quantize."""
     assert len(inputs) == 4
     assert attrs.sign
+    if attrs.rounding == "origin":
+        return [topi.identity(inputs[0])]
+
+    assert False
     assert attrs.rounding == "round"
 
     data, scale, clip_min, clip_max = inputs
@@ -117,7 +121,7 @@ def register_annotate_function(op_name, frewrite=None, level=10):
 
 
 @register_func("relay.quantize.attach_simulated_quantize")
-def attach_simulated_quantize(data, kind, sign=True, rounding="round"):
+def attach_simulated_quantize(data, kind, sign=True, rounding="origin"):
     """Attach a simulated quantize operation after input data expr.
 
     Parameters
@@ -156,6 +160,9 @@ def conv2d_rewrite(ref_call, new_args, ctx):
     if cnt < current_qconfig().skip_k_conv:
         _set_conv_counter(cnt + 1)
         return None
+    if cnt >= current_qconfig().skip_k_conv + current_qconfig().num_qconv:
+        _set_conv_counter(cnt + 1)
+        return None
     _set_conv_counter(cnt + 1)
 
     lhs_expr, lhs_kind = _get_expr_kind(new_args[0])
@@ -175,6 +182,27 @@ def conv2d_rewrite(ref_call, new_args, ctx):
 def dense_rewrite(ref_call, new_args, ctx):
     """Rewrite function for dense. Lhs of dense will be quantized to input field, and rhs of
     dense will be quantized to weight field. Output would be in activation field."""
+    cnt = _conv_counter()
+    if cnt < current_qconfig().skip_k_conv:
+        return None
+    lhs_expr, lhs_kind = _get_expr_kind(new_args[0])
+    rhs_expr, rhs_kind = _get_expr_kind(new_args[1])
+
+    if lhs_kind is None or lhs_kind != QAnnotateKind.INPUT:
+        lhs_expr = attach_simulated_quantize(lhs_expr, QAnnotateKind.INPUT)
+
+    assert rhs_kind is None
+    rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
+
+    expr = _forward_op(ref_call, [lhs_expr, rhs_expr])
+    return QAnnotateExpr(expr, QAnnotateKind.ACTIVATION)
+
+
+@register_annotate_function("nn.conv2d_transpose")
+def conv2d_transpose_rewrite(ref_call, new_args, ctx):
+    """Rewrite function for conv2d_transpose. Lhs of conv will be quantized to
+    input field, and rhs of conv will be quantized to weight field.
+    Output would be in activation field"""
     cnt = _conv_counter()
     if cnt < current_qconfig().skip_k_conv:
         return None
@@ -230,7 +258,7 @@ def add_rewrite(ref_call, new_args, ctx):
     if lhs_kind is not None and rhs_kind is None:
         if isinstance(rhs_expr, _expr.Constant):
             # quantize rhs to WEIGHT field if it is Constant
-            rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
+            rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.BIAS)
         else:
             # quantize rhs to INPUT field if it is not Constant
             rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.INPUT)
@@ -259,6 +287,7 @@ register_annotate_function("nn.relu", identity_rewrite)
 register_annotate_function("strided_slice", identity_rewrite)
 register_annotate_function("nn.avg_pool2d", identity_rewrite)
 register_annotate_function("nn.batch_flatten", identity_rewrite)
+register_annotate_function("reshape", identity_rewrite)
 
 
 def pool2d_rewrite(ref_call, new_args, ctx):
