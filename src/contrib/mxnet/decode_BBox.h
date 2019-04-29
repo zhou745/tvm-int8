@@ -44,10 +44,8 @@ struct Decode_BBoxSign : public OpSignature {
     bbox_pred(args[1]),
     im_info(args[2]),
     class_agnostic(args[4]) {
-
     this->bbox_mean = GetFloatVector_BBox(args, 5);
-    this->bbox_std = GetFloatVector_BBox(args, 5 + this->bbox_mean.size());
-
+    this->bbox_std = GetFloatVector_BBox(args, 6 + this->bbox_mean.size());
     Reserve(24);
     AddSign(rois);
     AddSign(bbox_pred);
