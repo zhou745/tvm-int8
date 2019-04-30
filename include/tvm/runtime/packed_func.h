@@ -367,7 +367,7 @@ inline std::string TVMType2String(TVMType t);
 // macro to check type code.
 #define TVM_CHECK_TYPE_CODE(CODE, T)                           \
   CHECK_EQ(CODE, T) << " expected "                            \
-  << TypeCode2Str(T) << " but get " << TypeCode2Str(CODE)      \
+  << TypeCode2Str(T) << " but get " << TypeCode2Str(CODE)     \
 
 /*!
  * \brief Type traits to mark if a class is tvm extension type.
@@ -434,6 +434,11 @@ class TVMPODValue_ {
     return value_.v_int64;
   }
   operator uint64_t() const {
+    //if(type_code_!=kDLInt){
+    //  std::cout<<"error"<<std::endl;
+    //  int a;
+    // std::cin>>a;
+    //}
     TVM_CHECK_TYPE_CODE(type_code_, kDLInt);
     return value_.v_int64;
   }

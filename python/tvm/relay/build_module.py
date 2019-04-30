@@ -294,7 +294,7 @@ def build(func, target=None, target_host=None, params=None):
         # Fuse ops before running code gen
         func = ir_pass.infer_type(func)
         func = ir_pass.fuse_ops(func, cfg.opt_level)
-        print(func)
+        #print(func)
         # Graph code generation
         func = ir_pass.infer_type(func)
         graph_gen = _graph_gen.GraphRuntimeCodegen(mod=None, target=target)

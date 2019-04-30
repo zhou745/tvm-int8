@@ -176,6 +176,7 @@ inline TVMArgValue::operator tvm::Integer() const {
     return Integer(static_cast<int>(value_.v_int64));
   }
   NodePtr<Node>& sptr = *ptr<NodePtr<Node> >();
+  
   CHECK(NodeTypeChecker<Integer>::Check(sptr.get()))
       << "Expected type " << NodeTypeName<Expr>()
       << " but get " << sptr->type_key();

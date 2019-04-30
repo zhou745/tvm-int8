@@ -142,14 +142,14 @@ void Decode_BBoxOp::Forward(
              mshadow::Tensor<gpu, 2, float>& im_info,
              mshadow::Tensor<gpu, 3, float>& out) {
   //copy bbox_mean and bbox_std to gpu
-  FRCNN_CUDA_CHECK(cudaMemcpy(bbox_mean.data(),
-                              bbox_mean_gpu.dptr_,
+  FRCNN_CUDA_CHECK(cudaMemcpy(bbox_mean_gpu.dptr_,
+                              bbox_mean.data(),
                               sizeof(float) * bbox_mean.size(),
                               cudaMemcpyHostToDevice));
     
   
-  FRCNN_CUDA_CHECK(cudaMemcpy(bbox_std.data(),
-                              bbox_std_gpu.dptr_,
+  FRCNN_CUDA_CHECK(cudaMemcpy(bbox_std_gpu.dptr_,
+                              bbox_std.data(),
                               sizeof(float) * bbox_std.size(),
                               cudaMemcpyHostToDevice));
 
