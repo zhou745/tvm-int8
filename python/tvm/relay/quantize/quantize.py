@@ -81,7 +81,7 @@ class QConfig(NodeBase):
         "store_lowbit_output": True,
         "debug_enabled_ops": None,
         "use_stop_fusion": True,
-        "quantize_dense": True
+        "quantize_dense": True,
         "num_qconv": 100#49
     }
 
@@ -208,14 +208,6 @@ def collect_stats(graph, dataset):
     quantize_op = _op.get("relay.op.annotation.simulated_quantize")
     quantized_exprs = []
 
-<<<<<<< HEAD
-    def visit_func(expr):
-        """Internal visit function"""
-        if isinstance(expr, _expr.Call) and expr.op == quantize_op and expr.attrs.kind != QAnnotateKind.WEIGHT:
-            quantized_exprs.append(expr.args[0])
-
-    _ir_pass.post_order_visit(graph, visit_func)
-=======
     print('calibrate graph')
     print(graph)
     def visit_func(expr):
@@ -226,7 +218,6 @@ def collect_stats(graph, dataset):
     _ir_pass.post_order_visit(graph, visit_func)
     if len(quantized_exprs) == 0:
         return []
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
     graph = _expr.Function(graph.params, _expr.Tuple(quantized_exprs))
 
     graph_json, lib, params = _build.build(graph, 'cuda')
@@ -235,11 +226,8 @@ def collect_stats(graph, dataset):
 
     num_outputs = module.get_num_outputs()
     outputs = [[] for i in range(num_outputs)]
-<<<<<<< HEAD
-=======
     print('NUMOUTPUTS')
     print(len(outputs))
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     for batch in dataset:
         module.set_input(**batch)
@@ -372,10 +360,6 @@ def calibrate(graph, dataset=None):
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         val = np.amax(np.abs(arr))
-<<<<<<< HEAD
-        #return(val if val > 1 else 1.0)
-       	return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
-=======
         if not eps:
        	    return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
        	exp = np.math.ceil(np.math.log(val, 2)) if val > 0 else 0
@@ -391,22 +375,16 @@ def calibrate(graph, dataset=None):
         assert val > 0.
         val = max(val, 10**(-7))
         return val
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     def kld(arr):
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         _, _, _, val = _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255)
-<<<<<<< HEAD
-        return val
-        return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
-=======
         return val if val > 0 else 1.0
 	#return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
     #fcalib = power2_scale
     fcalib = kld
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     #fcalib = power2_scale
     fcalib = kld
@@ -479,17 +457,11 @@ def calibrate(graph, dataset=None):
                 if outputs is not None:
                     data = outputs[counter[0]]
                     counter[0] += 1
-<<<<<<< HEAD
-                    print('{} / {} ...'.format(counter[0], len(outputs)))
-                    scale = fcalib(data)
-                    print(scale)
-=======
                     #eps = True
                     #print('{} / {} ...'.format(counter[0], len(outputs)))
                     scale = fcalib(data)
                     #scale = no_clipping(data)
                     print('act scale: {}'.format(scale))
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
                 else:
                     scale = cfg.global_scale
 
@@ -512,10 +484,7 @@ def calibrate(graph, dataset=None):
         outputs = collect_stats(graph, dataset)
         _ir_pass.post_order_visit(original_graph, visit_func)
         assert counter[0] == len(outputs)
-<<<<<<< HEAD
-=======
         #_ir_pass.post_order_visit(original_graph, visit_bias)
->>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
         graph = _expr.bind(original_graph, const_params)
 
     return graph
