@@ -358,8 +358,8 @@ def calibrate(graph, dataset=None):
         return val
         return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
-    fcalib = power2_scale
-    #fcalib = kld
+    #fcalib = power2_scale
+    fcalib = kld
 
     cfg = current_qconfig()
     const_params = {}
@@ -388,6 +388,7 @@ def calibrate(graph, dataset=None):
                     counter[0] += 1
                     print('{} / {} ...'.format(counter[0], len(outputs)))
                     scale = fcalib(data)
+                    print(scale)
                 else:
                     scale = cfg.global_scale
 
