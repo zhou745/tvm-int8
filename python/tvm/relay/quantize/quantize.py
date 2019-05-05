@@ -28,6 +28,7 @@ from ... import make as _make, context
 from ..base import NodeBase, register_relay_node
 from ...contrib import graph_runtime
 
+from multiprocessing import Pool
 
 class QAnnotateKind(object):
     """Denote the kind of annotation field, corresponding
@@ -35,6 +36,7 @@ class QAnnotateKind(object):
     INPUT = 1
     WEIGHT = 2
     ACTIVATION = 3
+    BIAS = 4
 
 
 def kind2str(kind):
@@ -43,6 +45,7 @@ def kind2str(kind):
         QAnnotateKind.INPUT: "input",
         QAnnotateKind.WEIGHT: "weight",
         QAnnotateKind.ACTIVATION: "activation",
+        QAnnotateKind.BIAS: "bias",
     }
     assert kind in str_map
     return str_map[kind]
@@ -67,9 +70,11 @@ class QConfig(NodeBase):
         "nbit_input": 8,
         "nbit_weight": 8,
         "nbit_activation": 32,
+        "nbit_bias": 32,
         "dtype_input": "int8",
         "dtype_weight": "int8",
         "dtype_activation": "int32",
+        "dtype_bias": "int32",
         "global_scale": 8.0,
         "skip_k_conv": 1,
         "round_for_shift": True,
@@ -77,6 +82,7 @@ class QConfig(NodeBase):
         "debug_enabled_ops": None,
         "use_stop_fusion": True,
         "quantize_dense": True
+        "num_qconv": 100#49
     }
 
     # pylint: disable=no-member
@@ -202,12 +208,25 @@ def collect_stats(graph, dataset):
     quantize_op = _op.get("relay.op.annotation.simulated_quantize")
     quantized_exprs = []
 
+<<<<<<< HEAD
     def visit_func(expr):
         """Internal visit function"""
         if isinstance(expr, _expr.Call) and expr.op == quantize_op and expr.attrs.kind != QAnnotateKind.WEIGHT:
             quantized_exprs.append(expr.args[0])
 
     _ir_pass.post_order_visit(graph, visit_func)
+=======
+    print('calibrate graph')
+    print(graph)
+    def visit_func(expr):
+        """Internal visit function"""
+        if isinstance(expr, _expr.Call) and expr.op == quantize_op and expr.attrs.kind not in [QAnnotateKind.WEIGHT, QAnnotateKind.BIAS]:
+            quantized_exprs.append(expr.args[0])
+
+    _ir_pass.post_order_visit(graph, visit_func)
+    if len(quantized_exprs) == 0:
+        return []
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
     graph = _expr.Function(graph.params, _expr.Tuple(quantized_exprs))
 
     graph_json, lib, params = _build.build(graph, 'cuda')
@@ -216,6 +235,11 @@ def collect_stats(graph, dataset):
 
     num_outputs = module.get_num_outputs()
     outputs = [[] for i in range(num_outputs)]
+<<<<<<< HEAD
+=======
+    print('NUMOUTPUTS')
+    print(len(outputs))
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     for batch in dataset:
         module.set_input(**batch)
@@ -343,20 +367,46 @@ def calibrate(graph, dataset=None):
     ret: Function
         The graph after calibration
     """
-    def power2_scale(arr):
+    def power2_scale(arr, eps=False):
         """calculate weight scale with nearest mode-2 scale"""
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         val = np.amax(np.abs(arr))
+<<<<<<< HEAD
         #return(val if val > 1 else 1.0)
        	return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+=======
+        if not eps:
+       	    return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+       	exp = np.math.ceil(np.math.log(val, 2)) if val > 0 else 0
+        return 2**exp + 2**(exp-20)
+
+    def no_clipping(arr, abs_=True):
+        if not isinstance(arr, np.ndarray):
+            arr = arr.asnumpy()
+        if abs_:
+            val = np.amax(np.abs(arr))
+        else:
+            val = np.abs(np.amax(arr))
+        assert val > 0.
+        val = max(val, 10**(-7))
+        return val
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     def kld(arr):
         if not isinstance(arr, np.ndarray):
             arr = arr.asnumpy()
         _, _, _, val = _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255)
+<<<<<<< HEAD
         return val
         return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+=======
+        return val if val > 0 else 1.0
+	#return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+
+    #fcalib = power2_scale
+    fcalib = kld
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
 
     #fcalib = power2_scale
     fcalib = kld
@@ -364,6 +414,47 @@ def calibrate(graph, dataset=None):
     cfg = current_qconfig()
     const_params = {}
     quantize_op = _op.get("relay.op.annotation.simulated_quantize")
+    add_op = _op.get("add")
+    conv2d_op = _op.get("nn.conv2d")
+
+    outputs = None
+    scales = None
+
+    counter = [0]
+
+    def visit_bias(expr):
+        def _make_const(val):
+            return _expr.const(val, 'float32')
+        if isinstance(expr, _expr.Call) and expr.op == add_op:
+            lhs = expr.args[0]
+            rhs = expr.args[1]
+            if isinstance(rhs, _expr.Call) and rhs.op == quantize_op and rhs.attrs.kind == QAnnotateKind.BIAS:
+                _, ndom_scale, nclip_min, nclip_max = rhs.args
+                kind = rhs.attrs.kind
+                nbit = cfg.get_nbit_by_kind(kind)
+                valid_bit = nbit - 1
+
+                valid_range = 2**valid_bit
+
+                if isinstance(lhs, _expr.Call) and lhs.op == conv2d_op:
+                    print(lhs.args[0])
+                    print(lhs.args[1])
+
+                    scale = const_params[lhs.args[0].args[1]].data.asnumpy() * const_params[lhs.args[1].args[1]].data.asnumpy()
+                    print('bias scale: {} * 2^7 = '.format(scale, scale*(2**7)))
+                elif isinstance(lhs, _expr.Call) and lhs.op == quantize_op:
+                    scale = const_params[lhs.args[1]].data.asnumpy()
+                    print('bias scale: {} * 2^7 = '.format(scale, scale*(2**7)))
+                elif isinstance(lhs, _expr.Call) and lhs.op == add_op:
+                    lhs = lhs.args[0]
+                else:
+                    print(lhs)
+                    scale = const_params[lhs.args[0].args[1]].data.asnumpy()
+                    print('bias scale: {} * 2^7 = '.format(scale, scale*(2**7)))
+                const_params[ndom_scale] =_make_const(scale)
+                const_params[nclip_min] = _make_const(- (valid_range - 1))
+                const_params[nclip_max] = _make_const((valid_range - 1))
+
 
     outputs = None
     counter = [0]
@@ -378,17 +469,27 @@ def calibrate(graph, dataset=None):
 
             valid_bit = nbit - attrs.sign
 
-            if kind == QAnnotateKind.WEIGHT:
+            if kind in [QAnnotateKind.WEIGHT, QAnnotateKind.BIAS]:
                 var = expr.args[0]
-                assert isinstance(var, _expr.Constant)
-                scale = power2_scale(var.data)
+                #assert isinstance(var, _expr.Constant)
+                scale = no_clipping(var.data)
+                #scale = power2_scale(var.data, False)
+                print('weight scale: {}'.format(scale))
             else:
                 if outputs is not None:
                     data = outputs[counter[0]]
                     counter[0] += 1
+<<<<<<< HEAD
                     print('{} / {} ...'.format(counter[0], len(outputs)))
                     scale = fcalib(data)
                     print(scale)
+=======
+                    #eps = True
+                    #print('{} / {} ...'.format(counter[0], len(outputs)))
+                    scale = fcalib(data)
+                    #scale = no_clipping(data)
+                    print('act scale: {}'.format(scale))
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
                 else:
                     scale = cfg.global_scale
 
@@ -397,6 +498,8 @@ def calibrate(graph, dataset=None):
 
             valid_range = 2**valid_bit
             const_params[ndom_scale] = _make_const(scale / valid_range)
+            if kind in [QAnnotateKind.BIAS]:
+                const_params[ndom_scale] = _make_const(scale / (2**15))
             const_params[nclip_min] = _make_const(- (valid_range - 1))
             const_params[nclip_max] = _make_const((valid_range - 1))
 
@@ -409,6 +512,10 @@ def calibrate(graph, dataset=None):
         outputs = collect_stats(graph, dataset)
         _ir_pass.post_order_visit(original_graph, visit_func)
         assert counter[0] == len(outputs)
+<<<<<<< HEAD
+=======
+        #_ir_pass.post_order_visit(original_graph, visit_bias)
+>>>>>>> edb80fac0c88fe8ff8f4953f1af3a301f62b2b22
         graph = _expr.bind(original_graph, const_params)
 
     return graph
@@ -468,5 +575,7 @@ def quantize(graph, params=None, dataset=None):
     graph = calibrate(graph, dataset)
     print(graph)
     graph = realize(graph)
+    print('realized graph')
+    print(graph)
     graph = _ir_pass.fold_constant(graph)
     return graph

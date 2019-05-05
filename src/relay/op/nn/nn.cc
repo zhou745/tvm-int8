@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,6 +28,7 @@
 #include <tvm/relay/attrs/nn.h>
 #include <tvm/relay/attrs/image.h>
 #include <topi/nn.h>
+#include <topi/nn/bias_add.h>
 #include <topi/nn/softmax.h>
 #include <topi/nn/flatten.h>
 #include <vector>
@@ -78,9 +79,7 @@ Expr MakeBiasAdd(Expr data,
 
 
 TVM_REGISTER_API("relay.op.nn._make.bias_add")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 3>(MakeBiasAdd, args, rv);
-  });
+.set_body_typed(MakeBiasAdd);
 
 
 RELAY_REGISTER_OP("nn.bias_add")
@@ -92,7 +91,12 @@ RELAY_REGISTER_OP("nn.bias_add")
 .add_argument("data", "nD Tensor", "Input data.")
 .add_argument("bias", "1D Tensor", "Bias.")
 .set_support_level(1)
-.add_type_rel("BiasAdd", BiasAddRel);
+.add_type_rel("BiasAdd", BiasAddRel)
+.set_attr<FTVMCompute>("FTVMCompute", [](const Attrs& attrs, const Array<Tensor>& inputs,
+                                        const Type& out_type, const Target& target) {
+    const auto* param = attrs.as<BiasAddAttrs>();
+    return tvm::Array<tvm::Tensor>{topi::nn::bias_add(inputs[0], inputs[1], param->axis)};
+});
 
 
 // relay.nn.dense
@@ -151,9 +155,7 @@ Expr MakeDense(Expr data,
 
 
 TVM_REGISTER_API("relay.op.nn._make.dense")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 4>(MakeDense, args, rv);
-  });
+.set_body_typed(MakeDense);
 
 
 RELAY_REGISTER_OP("nn.dense")
@@ -185,9 +187,7 @@ Expr MakeLeakyRelu(Expr data,
 
 
 TVM_REGISTER_API("relay.op.nn._make.leaky_relu")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 2>(MakeLeakyRelu, args, rv);
-  });
+.set_body_typed(MakeLeakyRelu);
 
 
 RELAY_REGISTER_OP("nn.leaky_relu")
@@ -250,9 +250,7 @@ Expr MakePRelu(Expr data,
 
 
 TVM_REGISTER_API("relay.op.nn._make.prelu")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 3>(MakePRelu, args, rv);
-  });
+.set_body_typed(MakePRelu);
 
 
 RELAY_REGISTER_OP("nn.prelu")
@@ -282,16 +280,13 @@ where :math:`*` is an channelwise multiplication for each sample in the batch.
 TVM_REGISTER_NODE_TYPE(SoftmaxAttrs);
 
 TVM_REGISTER_API("relay.op.nn._make.softmax")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-  auto make_func = [](Expr data, int axis) {
-    auto attrs = make_node<SoftmaxAttrs>();
-    attrs->axis = axis;
-    static const Op& op = Op::Get("nn.softmax");
-    return CallNode::make(op, {data}, Attrs(attrs), {});
-  };
-
-  runtime::detail::unpack_call<Expr, 2>(make_func, args, rv);
+.set_body_typed<Call(Expr, int)>([](Expr data, int axis) {
+  auto attrs = make_node<SoftmaxAttrs>();
+  attrs->axis = axis;
+  static const Op& op = Op::Get("nn.softmax");
+  return CallNode::make(op, {data}, Attrs(attrs), {});
 });
+
 
 RELAY_REGISTER_OP("nn.softmax")
     .describe(R"code(Softmax layer.
@@ -320,15 +315,11 @@ RELAY_REGISTER_OP("nn.softmax")
 
 // relay.nn.log_softmax
 TVM_REGISTER_API("relay.op.nn._make.log_softmax")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-  auto make_func = [](Expr data, int axis) {
-    auto attrs = make_node<SoftmaxAttrs>();
-    attrs->axis = axis;
-    static const Op& op = Op::Get("nn.log_softmax");
-    return CallNode::make(op, {data}, Attrs(attrs), {});
-  };
-
-  runtime::detail::unpack_call<Expr, 2>(make_func, args, rv);
+.set_body_typed<Call(Expr, int)>([](Expr data, int axis) {
+  auto attrs = make_node<SoftmaxAttrs>();
+  attrs->axis = axis;
+  static const Op& op = Op::Get("nn.log_softmax");
+  return CallNode::make(op, {data}, Attrs(attrs), {});
 });
 
 RELAY_REGISTER_OP("nn.log_softmax")
@@ -388,9 +379,7 @@ Expr MakeBatchFlatten(Expr data) {
 
 
 TVM_REGISTER_API("relay.op.nn._make.batch_flatten")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 1>(MakeBatchFlatten, args, rv);
-  });
+.set_body_typed(MakeBatchFlatten);
 
 
 RELAY_REGISTER_OP("nn.batch_flatten")
@@ -430,7 +419,7 @@ Example::
 
 // relu
 TVM_REGISTER_API("relay.op.nn._make.relu")
-.set_body_typed<Expr(Expr)>([](Expr data) {
+.set_body_typed<Call(Expr)>([](Expr data) {
     static const Op& op = Op::Get("nn.relu");
     return CallNode::make(op, {data}, Attrs(), {});
   });
@@ -475,9 +464,7 @@ Expr MakeLRN(Expr data,
 }
 
 TVM_REGISTER_API("relay.op.nn._make.lrn")
-  .set_body([](const TVMArgs& args, TVMRetValue* rv) {
-      runtime::detail::unpack_call<Expr, 6>(MakeLRN, args, rv);
-  });
+.set_body_typed(MakeLRN);
 
 RELAY_REGISTER_OP("nn.lrn")
 .describe(R"code(LRN layer.
@@ -515,9 +502,7 @@ Expr MakeL2Normalize(Expr data,
 }
 
 TVM_REGISTER_API("relay.op.nn._make.l2_normalize")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 3>(MakeL2Normalize, args, rv);
-  });
+.set_body_typed(MakeL2Normalize);
 
 RELAY_REGISTER_OP("nn.l2_normalize")
 .describe(R"code(L2 Normalization layer.
@@ -562,9 +547,7 @@ Expr MakeDropout(Expr data, double rate) {
 }
 
 TVM_REGISTER_API("relay.op.nn._make.dropout")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 2>(MakeDropout, args, rv);
-  });
+.set_body_typed(MakeDropout);
 
 RELAY_REGISTER_OP("nn.dropout")
 .describe(R"code(Applies the dropout operation to the input array.
@@ -628,9 +611,7 @@ Expr MakeBatchNorm(Expr data, Expr gamma, Expr beta, Expr moving_mean, Expr movi
 }
 
 TVM_REGISTER_API("relay.op.nn._make.batch_norm")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 9>(MakeBatchNorm, args, rv);
-  });
+.set_body_typed(MakeBatchNorm);
 
 RELAY_REGISTER_OP("nn.batch_norm")
 .describe(R"code(Batch normalization layer (Ioffe and Szegedy, 2014).
@@ -689,7 +670,7 @@ bool BatchMatmulRel(const Array<Type>& types,
   const auto* x = types[0].as<TensorTypeNode>();
   const auto* y = types[1].as<TensorTypeNode>();
   if (x == nullptr || y == nullptr) return false;
-  if (x->shape.size() != 3 || y->shape.size() != 3) return false;
+  CHECK(x->shape.size() == 3 && y->shape.size() == 3);
   CHECK(reporter->AssertEQ(x->shape[0], y->shape[0]))
       << "BatchDot: batch dimension doesn't match, "
       << " x shape=" << x->shape
@@ -717,9 +698,7 @@ Expr MakeBatchMatmul(Expr x,
 
 
 TVM_REGISTER_API("relay.op.nn._make.batch_matmul")
-.set_body([](const TVMArgs& args, TVMRetValue* rv) {
-    runtime::detail::unpack_call<Expr, 2>(MakeBatchMatmul, args, rv);
-  });
+.set_body_typed(MakeBatchMatmul);
 
 
 RELAY_REGISTER_OP("nn.batch_matmul")

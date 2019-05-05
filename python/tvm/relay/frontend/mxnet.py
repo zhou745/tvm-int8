@@ -644,6 +644,14 @@ def _mx_roi_align_v2(inputs, attrs):
     return _op.vision.roi_align_v2(inputs[0], inputs[1], **new_attrs)
 
 
+def _mx_roi_align_v2(inputs, attrs):
+    new_attrs = {}
+    new_attrs["pooled_size"] = attrs.get_int_tuple("pooled_size")
+    new_attrs["spatial_scale"] = attrs.get_float("spatial_scale")
+    new_attrs["layout"] = "NCHW"
+    return _op.vision.roi_align_v2(inputs[0], inputs[1], **new_attrs)
+
+
 def _mx_deformable_convolution(inputs, attrs):
     new_attrs = {}
     assert attrs.get_bool("no_bias")

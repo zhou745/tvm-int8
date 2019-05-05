@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -40,6 +40,7 @@ enum QAnnotateKind : int {
   kQInput = 1,
   kQWeight = 2,
   kQActivation = 3,
+  kQBias = 4,
 };
 
 /*!
@@ -121,9 +122,11 @@ class QConfigNode : public Node {
   int nbit_input = 8;
   int nbit_weight = 8;
   int nbit_activation = 32;
+  int nbit_bias = 32;
   DataType dtype_input = Int(8);
   DataType dtype_weight = Int(8);
   DataType dtype_activation = Int(32);
+  DataType dtype_bias = Int(32);
   double global_scale = 8.0;
   int skip_k_conv = 1;
   bool round_for_shift = true;
@@ -131,14 +134,17 @@ class QConfigNode : public Node {
   Array<Expr> debug_enabled_ops = Array<Expr>(NodePtr<Node>(nullptr));
   bool use_stop_fusion = true;
   bool quantize_dense = true;
+  int num_qconv = 1;
 
   void VisitAttrs(AttrVisitor* v) final {
     v->Visit("nbit_input", &nbit_input);
     v->Visit("nbit_weight", &nbit_weight);
     v->Visit("nbit_activation", &nbit_activation);
+    v->Visit("nbit_bias", &nbit_bias);
     v->Visit("dtype_input", &dtype_input);
     v->Visit("dtype_weight", &dtype_weight);
     v->Visit("dtype_activation", &dtype_activation);
+    v->Visit("dtype_bias", &dtype_bias);
     v->Visit("global_scale", &global_scale);
     v->Visit("skip_k_conv", &skip_k_conv);
     v->Visit("round_for_shift", &round_for_shift);
@@ -146,6 +152,7 @@ class QConfigNode : public Node {
     v->Visit("debug_enabled_ops", &debug_enabled_ops);
     v->Visit("use_stop_fusion", &use_stop_fusion);
     v->Visit("quantize_dense", &quantize_dense);
+    v->Visit("num_qconv", &num_qconv);
   }
 
   static constexpr const char* _type_key = "relay.quantize.QConfig";

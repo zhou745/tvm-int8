@@ -160,6 +160,9 @@ def conv2d_rewrite(ref_call, new_args, ctx):
     if cnt < current_qconfig().skip_k_conv:
         _set_conv_counter(cnt + 1)
         return None
+    if cnt >= current_qconfig().skip_k_conv + current_qconfig().num_qconv:
+        _set_conv_counter(cnt + 1)
+        return None
     _set_conv_counter(cnt + 1)
 
     lhs_expr, lhs_kind = _get_expr_kind(new_args[0])
@@ -259,7 +262,7 @@ def add_rewrite(ref_call, new_args, ctx):
     if lhs_kind is not None and rhs_kind is None:
         if isinstance(rhs_expr, _expr.Constant):
             # quantize rhs to WEIGHT field if it is Constant
-            rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
+            rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.BIAS)
         else:
             # quantize rhs to INPUT field if it is not Constant
             rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.INPUT)
