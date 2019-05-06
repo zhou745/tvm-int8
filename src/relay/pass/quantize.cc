@@ -370,6 +370,7 @@ float ChooseDomScale(const std::vector<const QRealizeIntExprNode*>& nptrs) {
     //       = (a + b * s2 / s1) * s1, if s2 > s1
     float s1 = GetScalarFromConstant<float>(nptrs[0]->dom_scale);
     float s2 = GetScalarFromConstant<float>(nptrs[1]->dom_scale);
+    LOG(INFO) << "choose scale from " <<  s1 << " " << s2 << " result " << (s1 > s2 ? s2 : s1);
     return s1 > s2 ? s2 : s1;
   } else {
     const QConfig& cfg = QConfig::Current();
@@ -398,7 +399,6 @@ Array<Expr> UnifyDTypeScale(const Array<Expr>& ref_args,
 
   // unify the data type
   CHECK_EQ(ref_args.size(), args.size());
-  //LOG(INFO) << "Before " << AsText(ret[1], false);
   DataType dtype = cfg->dtype_activation;
   for (size_t i = 0; i < ret.size(); ++i) {
     auto ref_arg = ref_args[i].as<CallNode>();
@@ -413,7 +413,6 @@ Array<Expr> UnifyDTypeScale(const Array<Expr>& ref_args,
       ret.Set(i, Cast(new_arg, dtype));
     }
   }
-  //LOG(INFO) << "After " << AsText(ret[1], false);
 
   // unify the dom_scale
   float s = ChooseDomScale(nptrs);
