@@ -182,10 +182,6 @@ def conv2d_rewrite(ref_call, new_args, ctx):
 def dense_rewrite(ref_call, new_args, ctx):
     """Rewrite function for dense. Lhs of dense will be quantized to input field, and rhs of
     dense will be quantized to weight field. Output would be in activation field."""
-    print(current_qconfig().quantize_dense)
-    #if not current_qconfig().quantize_dense:
-    return None
-    assert False
     cnt = _conv_counter()
     if cnt < current_qconfig().skip_k_conv:
         return None
@@ -262,6 +258,7 @@ def add_rewrite(ref_call, new_args, ctx):
     if lhs_kind is not None and rhs_kind is None:
         if isinstance(rhs_expr, _expr.Constant):
             # quantize rhs to WEIGHT field if it is Constant
+            #rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.WEIGHT)
             rhs_expr = attach_simulated_quantize(rhs_expr, QAnnotateKind.BIAS)
         else:
             # quantize rhs to INPUT field if it is not Constant
