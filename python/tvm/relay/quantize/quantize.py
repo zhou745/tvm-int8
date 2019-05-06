@@ -18,6 +18,9 @@
 """Automatic quantization toolkit."""
 from __future__ import absolute_import
 import numpy as np
+import tqdm
+import pickle
+import os
 
 from . import _quantize
 from .. import expr as _expr
@@ -30,6 +33,7 @@ from ...contrib import graph_runtime
 
 from multiprocessing import Pool
 
+load_scale = False
 class QAnnotateKind(object):
     """Denote the kind of annotation field, corresponding
     to different nbit configure."""
@@ -81,7 +85,6 @@ class QConfig(NodeBase):
         "store_lowbit_output": True,
         "debug_enabled_ops": None,
         "use_stop_fusion": True,
-        "quantize_dense": True,
         "num_qconv": 100#49
     }
 
@@ -158,9 +161,6 @@ def qconfig(**kwargs):
         Whether add stop_fusion when casting to dtype_activation. stop_fusion forces lowbit
         results to be stored in memory.
 
-    quantize_dense: boolean
-        Whether to quantize dense layers.
-
     Returns
     -------
     config: QConfig
@@ -204,7 +204,21 @@ def annotate(graph):
     return _quantize.annotate(graph)
 
 
+def arr_hist(arrs):
+    arr = np.concatenate(arrs).reshape(-1)
+    min_val = np.min(arr)
+    max_val = np.max(arr)
+    th = max(abs(min_val), abs(max_val))
+    num_bins = 8001
+    hist, edges = np.histogram(arr, bins=num_bins, range=(-th, th))
+    return (hist, edges, min_val, max_val)
+
+
 def collect_stats(graph, dataset):
+    if os.path.exists('histogram.pkl'):
+        with open('histogram.pkl', 'rb') as f:
+            return pickle.load(f)
+
     quantize_op = _op.get("relay.op.annotation.simulated_quantize")
     quantized_exprs = []
 
@@ -229,14 +243,20 @@ def collect_stats(graph, dataset):
     print('NUMOUTPUTS')
     print(len(outputs))
 
-    for batch in dataset:
+    print('Collecting samples')
+    for batch_id, batch in enumerate(dataset):
+        print('batch {}..'.format(batch_id))
         module.set_input(**batch)
         module.run()
         for i in range(num_outputs):
             output = module.get_output(i).asnumpy()
             outputs[i].append(output)
 
-    return [np.concatenate(arr) for arr in outputs]
+    with Pool() as p:
+        result = list(tqdm.tqdm(p.imap(arr_hist, outputs), total=len(outputs)))
+        with open('histogram.pkl', 'wb') as f:
+            pickle.dump(result, f)
+    return result
 
 
 from scipy import stats
@@ -260,19 +280,17 @@ def _smooth_distribution(p, eps=0.0001):
     return hist
 
 
-def _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255):
+def _get_optimal_threshold(profile, num_bins=8001, num_quantized_bins=255):
     """Given a dataset, find the optimal threshold for quantizing it.
     The reference distribution is `q`, and the candidate distribution is `p`.
     `q` is a truncated version of the original distribution.
 
     Ref: http://on-demand.gputechconf.com/gtc/2017/presentation/s7310-8-bit-inference-with-tensorrt.pdf
     """
-    assert isinstance(arr, np.ndarray)
-    min_val = np.min(arr)
-    max_val = np.max(arr)
+    #assert isinstance(arr, np.ndarray)
+    hist, hist_edges, min_val, max_val = profile
     th = max(abs(min_val), abs(max_val))
 
-    hist, hist_edges = np.histogram(arr, bins=num_bins, range=(-th, th))
     zero_bin_idx = num_bins // 2
     num_half_quantized_bins = num_quantized_bins // 2
     assert np.allclose(hist_edges[zero_bin_idx] + hist_edges[zero_bin_idx + 1],
@@ -336,6 +354,37 @@ def _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255):
     return min_val, max_val, min_divergence, opt_th
 # pylint: enable=line-too-long
 
+def power2_scale(arr, eps=False):
+    """calculate weight scale with nearest mode-2 scale"""
+    if not isinstance(arr, np.ndarray):
+        arr = arr.asnumpy()
+    val = np.amax(np.abs(arr))
+    if not eps:
+        return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
+    exp = np.math.ceil(np.math.log(val, 2)) if val > 0 else 0
+    return 2**exp + 2**(exp-20)
+
+
+def act_power2_scale(profile):
+    _, _, min_val, max_val = profile
+    th = max(abs(min_val), abs(max_val))
+    return 2**np.math.ceil(np.math.log(th, 2)) if th > 0 else 1.0
+
+def no_clipping(arr, abs_=True):
+    if not isinstance(arr, np.ndarray):
+        arr = arr.asnumpy()
+    if abs_:
+        val = np.amax(np.abs(arr))
+    else:
+        val = np.abs(np.amax(arr))
+    assert val > 0.
+    #val = max(val, 10**(-7))
+    return val
+
+def act_kld(profile):
+    _, _, _, val = _get_optimal_threshold(profile, num_bins=8001, num_quantized_bins=255)
+    return val if val > 0 else 1.0
+    #return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
 
 def calibrate(graph, dataset=None):
     """The calibrate procedure will try to calculate the content of
@@ -355,39 +404,9 @@ def calibrate(graph, dataset=None):
     ret: Function
         The graph after calibration
     """
-    def power2_scale(arr, eps=False):
-        """calculate weight scale with nearest mode-2 scale"""
-        if not isinstance(arr, np.ndarray):
-            arr = arr.asnumpy()
-        val = np.amax(np.abs(arr))
-        if not eps:
-       	    return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
-       	exp = np.math.ceil(np.math.log(val, 2)) if val > 0 else 0
-        return 2**exp + 2**(exp-20)
 
-    def no_clipping(arr, abs_=True):
-        if not isinstance(arr, np.ndarray):
-            arr = arr.asnumpy()
-        if abs_:
-            val = np.amax(np.abs(arr))
-        else:
-            val = np.abs(np.amax(arr))
-        assert val > 0.
-        val = max(val, 10**(-7))
-        return val
-
-    def kld(arr):
-        if not isinstance(arr, np.ndarray):
-            arr = arr.asnumpy()
-        _, _, _, val = _get_optimal_threshold(arr, num_bins=8001, num_quantized_bins=255)
-        return val if val > 0 else 1.0
-	#return 2**np.math.ceil(np.math.log(val, 2)) if val > 0 else 1.0
-
-    #fcalib = power2_scale
-    fcalib = kld
-
-    #fcalib = power2_scale
-    fcalib = kld
+    fcalib = act_power2_scale
+    #fcalib = act_kld
 
     cfg = current_qconfig()
     const_params = {}
@@ -434,9 +453,6 @@ def calibrate(graph, dataset=None):
                 const_params[nclip_max] = _make_const((valid_range - 1))
 
 
-    outputs = None
-    counter = [0]
-
     def visit_func(expr):
         """Internal visit function"""
         if isinstance(expr, _expr.Call) and expr.op == quantize_op:
@@ -451,15 +467,16 @@ def calibrate(graph, dataset=None):
                 var = expr.args[0]
                 #assert isinstance(var, _expr.Constant)
                 scale = no_clipping(var.data)
-                #scale = power2_scale(var.data, False)
+                scale = power2_scale(var.data, False)
                 print('weight scale: {}'.format(scale))
             else:
                 if outputs is not None:
-                    data = outputs[counter[0]]
+                    #data = outputs[counter[0]]
+                    scale = scales[counter[0]]
                     counter[0] += 1
                     #eps = True
-                    #print('{} / {} ...'.format(counter[0], len(outputs)))
-                    scale = fcalib(data)
+                    print('{} / {} ...'.format(counter[0], len(outputs)))
+                    #scale = fcalib(data)
                     #scale = no_clipping(data)
                     print('act scale: {}'.format(scale))
                 else:
@@ -480,10 +497,35 @@ def calibrate(graph, dataset=None):
     graph = _expr.bind(original_graph, const_params)
 
     if dataset is not None:
+        global load_scale
+
         print('Calibrating on dataset')
         outputs = collect_stats(graph, dataset)
+
+        if load_scale:
+            with open('scale.pkl', 'rb') as f:
+                scales = pickle.load(f)
+            print(scales)
+        else:
+            # single process
+            scales = []
+            for profile in outputs:
+                print(len(scales)+1)
+                scales.append(fcalib(profile))
+
+            '''
+            # multi process
+            with Pool() as p:
+                scales = p.map(fcalib, outputs)
+            '''
+
+            print('scales')
+            print(scales)
+            with open('scale.pkl', 'wb') as f:
+                pickle.dump(scales, f)
+
         _ir_pass.post_order_visit(original_graph, visit_func)
-        assert counter[0] == len(outputs)
+        #assert counter[0] == len(outputs)
         #_ir_pass.post_order_visit(original_graph, visit_bias)
         graph = _expr.bind(original_graph, const_params)
 
@@ -539,7 +581,7 @@ def quantize(graph, params=None, dataset=None):
                   "CanonicalizeOps"]
     with _build.build_config(add_pass=opt_passes):
         graph = _build.optimize(graph, params=params)
-    print("optimize finished")
+
     graph = annotate(graph)
     graph = calibrate(graph, dataset)
     print(graph)
