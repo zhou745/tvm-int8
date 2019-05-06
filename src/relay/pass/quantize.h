@@ -133,7 +133,6 @@ class QConfigNode : public Node {
   bool store_lowbit_output = true;
   Array<Expr> debug_enabled_ops = Array<Expr>(NodePtr<Node>(nullptr));
   bool use_stop_fusion = true;
-  bool quantize_dense = true;
   int num_qconv = 1;
 
   void VisitAttrs(AttrVisitor* v) final {
@@ -151,7 +150,6 @@ class QConfigNode : public Node {
     v->Visit("store_lowbit_output", &store_lowbit_output);
     v->Visit("debug_enabled_ops", &debug_enabled_ops);
     v->Visit("use_stop_fusion", &use_stop_fusion);
-    v->Visit("quantize_dense", &quantize_dense);
     v->Visit("num_qconv", &num_qconv);
   }
 
