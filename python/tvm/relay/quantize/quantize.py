@@ -252,10 +252,13 @@ def collect_stats(graph, dataset):
             output = module.get_output(i).asnumpy()
             outputs[i].append(output)
 
-    with Pool() as p:
-        result = list(tqdm.tqdm(p.imap(arr_hist, outputs), total=len(outputs)))
-        with open('histogram.pkl', 'wb') as f:
-            pickle.dump(result, f)
+    #with Pool() as p:
+    #    result = list(tqdm.tqdm(p.imap(arr_hist, outputs), total=len(outputs)))
+    #    with open('histogram.pkl', 'wb') as f:
+    #        pickle.dump(result, f)
+    result = list(tqdm.tqdm(map(arr_hist, outputs), total=len(outputs)))
+    with open('histogram.pkl', 'wb') as f:
+          pickle.dump(result, f)
     return result
 
 
