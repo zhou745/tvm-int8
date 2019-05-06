@@ -304,7 +304,6 @@ Expr DenseRealize(const Call& ref_call,
   if (!new_args[0]->derived_from<TempExprNode>() || !new_args[1]->derived_from<TempExprNode>()) {
     return Expr(nullptr);
   }
-
   const auto* lhs = new_args[0].as<QRealizeIntExprNode>();
   const auto* rhs = new_args[1].as<QRealizeIntExprNode>();
 
@@ -371,6 +370,7 @@ float ChooseDomScale(const std::vector<const QRealizeIntExprNode*>& nptrs) {
     //       = (a + b * s2 / s1) * s1, if s2 > s1
     float s1 = GetScalarFromConstant<float>(nptrs[0]->dom_scale);
     float s2 = GetScalarFromConstant<float>(nptrs[1]->dom_scale);
+    LOG(INFO) << "choose scale from " <<  s1 << " " << s2 << " result " << (s1 > s2 ? s2 : s1);
     return s1 > s2 ? s2 : s1;
   } else {
     const QConfig& cfg = QConfig::Current();
@@ -399,7 +399,6 @@ Array<Expr> UnifyDTypeScale(const Array<Expr>& ref_args,
 
   // unify the data type
   CHECK_EQ(ref_args.size(), args.size());
-  //LOG(INFO) << "Before " << AsText(ret[1], false);
   DataType dtype = cfg->dtype_activation;
   for (size_t i = 0; i < ret.size(); ++i) {
     auto ref_arg = ref_args[i].as<CallNode>();
@@ -414,7 +413,6 @@ Array<Expr> UnifyDTypeScale(const Array<Expr>& ref_args,
       ret.Set(i, Cast(new_arg, dtype));
     }
   }
-  //LOG(INFO) << "After " << AsText(ret[1], false);
 
   // unify the dom_scale
   float s = ChooseDomScale(nptrs);
@@ -483,7 +481,6 @@ RELAY_REGISTER_OP("concatenate")
 Expr IdentityRealize(const Call& ref_call,
                      const Array<Expr>& new_args,
                      const NodeRef& ctx) {
-  LOG(INFO) << ref_call->op;
   CHECK_EQ(new_args.size(), 1);
   if (const auto* n = new_args[0].as<QRealizeIntExprNode>()) {
     Expr ret = ForwardOp(ref_call, {n->data});
@@ -607,8 +604,7 @@ TVM_STATIC_IR_FUNCTOR(IRPrinter, vtable)
   p->stream << "round_for_shift==" << op->round_for_shift << ", ";
   p->stream << "store_lowbit_output==" << op->store_lowbit_output << ", ";
   p->stream << "debug_enabled_ops==" << op->debug_enabled_ops << ", ";
-  p->stream << "use_stop_fusion==" << op->use_stop_fusion << ", ";
-  p->stream << "quantize_dense==" << op->quantize_dense;
+  p->stream << "use_stop_fusion==" << op->use_stop_fusion;
   p->stream << ")";
 });
 
