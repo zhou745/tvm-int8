@@ -39,7 +39,7 @@
 #include <utility>
 #include <ctime>
 #include <iostream>
-
+#include <fstream>
 #include "./proposal.h"
 #include "./proposal-inl.h"
 #define DIVUP(m, n) ((m) / (n) + ((m) % (n) > 0))
@@ -256,7 +256,7 @@ __global__ void ReorderProposalsKernel(const int count,
 __device__ inline float devIoU(float const * const a, float const * const b) {
   float left = ::max(a[0], b[0]), right = ::min(a[2], b[2]);
   float top = ::max(a[1], b[1]), bottom = ::min(a[3], b[3]);
-  float width = ::max(right - left + 0, 0.f), height = ::max(bottom - top + 1, 0.f);
+  float width = ::max(right - left + 1, 0.f), height = ::max(bottom - top + 1, 0.f);
   float interS = width * height;
   float Sa = (a[2] - a[0] + 1) * (a[3] - a[1] + 1);
   float Sb = (b[2] - b[0] + 1) * (b[3] - b[1] + 1);
@@ -385,9 +385,9 @@ __global__ void PrepareOutput(const int count,
         out[index * 5 + j + 1] = dets[keep_i * 5 + j];
       }
     } else {
-      int keep_i = keep[index % out_size];
+      //int keep_i = keep[index % out_size];
       for (int j = 0; j < 4; ++j) {
-        out[index * 5 + j + 1] = dets[keep_i * 5 + j];
+        out[index * 5 + j + 1] = 0.0f;
       }
     }
   }
@@ -470,6 +470,9 @@ void ProposalGPUOp::Forward(
   int real_width = static_cast<int>(cpu_im_info_[1] / feature_stride_);
   CHECK_GE(height_, real_height) << height_ << " " << real_height << std::endl;
   CHECK_GE(width_, real_width) << width_ << " " << real_width << std::endl;
+  //zjq debug add
+  //std::ofstream zjq_file;
+  //zjq_file.open("tvm_record");
 
   /* copy anchors for all images in batch */
   for (int i = 0; i < nbatch_; i++) {
@@ -504,6 +507,17 @@ void ProposalGPUOp::Forward(
         count_, num_anchors_, height_, width_, real_height, real_width,
         cpu_im_info_[0], cpu_im_info_[1],
         batch_proposals, bbox_deltas.dptr_ + i * 4 * count_, batch_proposals);
+        //zjq debug add
+        /*
+        float temp[5*count_];
+        FRCNN_CUDA_CHECK(cudaMemcpy(temp,
+                                    batch_proposals,
+                                    sizeof(float)*count_*5,
+                                    cudaMemcpyDeviceToHost));
+        zjq_file<<count_<<std::endl;
+        for(int idx=0;idx<count_;idx++){
+            zjq_file<<idx<<" "<<temp[idx*5]<<" "<<temp[idx*5+1]<<" "<<temp[idx*5+2]<<" "<<temp[idx*5+3]<<" "<<temp[idx*5+4]<<std::endl;
+        }*/
     }
     FRCNN_CUDA_CHECK(cudaPeekAtLastError());
 
@@ -530,7 +544,17 @@ void ProposalGPUOp::Forward(
     ReorderProposalsKernel<<<dimGrid, dimBlock>>>(
       rpn_pre_nms_top_n, batch_proposals, order_.dptr_, ordered_proposals_.dptr_);
     FRCNN_CUDA_CHECK(cudaPeekAtLastError());
-
+    //zjq debug add
+    /*float temp[5*rpn_pre_nms_top_n];
+    FRCNN_CUDA_CHECK(cudaMemcpy(temp,
+                                ordered_proposals_.dptr_,
+                                sizeof(float)*rpn_pre_nms_top_n*5,
+                                cudaMemcpyDeviceToHost));
+    zjq_file<<rpn_pre_nms_top_n<<std::endl;
+    zjq_file<<threshold_<<std::endl;
+    for(int idx=0;idx<rpn_pre_nms_top_n;idx++){
+         zjq_file<<idx<<" "<<temp[idx*5]<<" "<<temp[idx*5+1]<<" "<<temp[idx*5+2]<<" "<<temp[idx*5+3]<<" "<<temp[idx*5+4]<<std::endl;
+    }*/
     /* perform nms */
     int out_size = 0;
     uint64_t *mask_dev = mask_tensor_.dptr_;
@@ -556,6 +580,8 @@ void ProposalGPUOp::Forward(
 
     FRCNN_CUDA_CHECK(cudaPeekAtLastError());
   }
+  //zjq debug add
+  //zjq_file.close();
 }
 
 ProposalGPUOp::~ProposalGPUOp() {

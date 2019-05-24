@@ -408,8 +408,8 @@ def calibrate(graph, dataset=None):
         The graph after calibration
     """
 
-    fcalib = act_power2_scale
-    #fcalib = act_kld
+    #fcalib = act_power2_scale
+    fcalib = act_kld
 
     cfg = current_qconfig()
     const_params = {}
@@ -504,7 +504,6 @@ def calibrate(graph, dataset=None):
 
         print('Calibrating on dataset')
         outputs = collect_stats(graph, dataset)
-
         if load_scale:
             with open('scale.pkl', 'rb') as f:
                 scales = pickle.load(f)

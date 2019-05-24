@@ -65,7 +65,7 @@ template<typename DType>
 __global__ void BBoxTransformInv(DType* boxes,
                                  DType* bbox_deltas,
                                  const int count,
-                                 const int nbatch,const int nrois,const int num_class,
+                                 const int nbatch,const int nrois,const int num_class,const int delta_cls,
                                  const int im_info_1,
                                  DType* bbox_mean,
                                  DType* bbox_std,
@@ -84,13 +84,13 @@ __global__ void BBoxTransformInv(DType* boxes,
       int cls = cidx%num_class;
 
       int offset = n*5*nrois+rois_idx*5;
-      float width = boxes[offset+2] - boxes[offset] + 1.0f;
-      float height = boxes[offset+3] - boxes[offset+1] + 1.0f;
-      float ctr_x = boxes[offset] + 0.5f * (width - 1.0f);
-      float ctr_y = boxes[offset+1] + 0.5f * (height - 1.0f);
+      float width = boxes[offset+3] - boxes[offset+1] + 1.0f;
+      float height = boxes[offset+4] - boxes[offset+2] + 1.0f;
+      float ctr_x = boxes[offset+1] + 0.5f * (width - 1.0f);
+      float ctr_y = boxes[offset+2] + 0.5f * (height - 1.0f);
 
       int decode_cls = class_agnostic ? 1 : cls;
-      offset = n*nrois*4*num_class+rois_idx*4*num_class;
+      offset = n*nrois*4*delta_cls+rois_idx*4*delta_cls;
       float dx = bbox_deltas[offset+decode_cls*4+0] * bbox_std[0] + bbox_mean[0];
       float dy = bbox_deltas[offset+decode_cls*4+1] * bbox_std[1] + bbox_mean[1];
       float dw = bbox_deltas[offset+decode_cls*4+2] * bbox_std[2] + bbox_mean[2];
@@ -160,12 +160,13 @@ void Decode_BBoxOp::Forward(
   int im_info_1= im_info.size(1);
 
   int num_class = class_agnostic ? 1 : (xy_in_group4 / 4);
+  int delta_cls=xy_in_group4/4;
   int count = nbatch*nrois*num_class;
 
   dim3 dimGrid((count + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK);
   dim3 dimBlock(THREAD_PER_BLOCK);
   BBoxTransformInv<<<dimGrid, dimBlock>>>(boxes.dptr_, bbox_deltas.dptr_, count,
-                                          nbatch,nrois,num_class,
+                                          nbatch,nrois,num_class,delta_cls,
                                           im_info_1,
                                           bbox_mean_gpu.dptr_, bbox_std_gpu.dptr_, class_agnostic,
                                           im_info.dptr_, out.dptr_);
